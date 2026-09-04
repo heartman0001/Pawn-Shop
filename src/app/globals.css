@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design System (อ้างอิง DESIGN.md)
+   - Teal หลัก / Gold สำหรับ CTA และ highlight / Coral สำหรับเตือนและหลุดจำนำ
+   - พื้น Cream สำหรับ input/card, พื้น Surface teal อ่อนทั้งแอป
+   - ปุ่มทรงกลม (pill), เงาแบบ color-glow, เส้นประสำหรับแบ่ง section
+   ============================================================ */
+
+:root {
+  /* Colors — จาก DESIGN.md */
+  --primary: #2ba8a2; /* teal หลัก */
+  --primary-light: #3cc4bd; /* teal ไล่/ hover */
+  --primary-dark: #1e8c86; /* teal เข้ม */
+  --primary-bg: #e8f6f5; /* พื้น teal อ่อน */
+  --accent: #ffd23f; /* gold CTA */
+  --accent-light: #ffe47a; /* gold อ่อน */
+  --accent-dark: #e6b800; /* gold เข้ม */
+  --coral: #ef6c4a; /* สีเตือน / หลุดจำนำ */
+  --coral-light: #ff8a6a;
+  --coral-dark: #d45233;
+  --cream: #fff8e7; /* พื้น input & card */
+  --sky: #5dade2; /* สถานะสำเร็จข้อมูล/สารสนเทศ */
+  --surface-base: #eff8f7; /* พื้นหลังทั้งแอป */
+  --surface-card: #ffffff;
+  --success: #27ae60;
+  --error: #e74c3c;
+
+  /* Glow shadows — ตาม DESIGN.md */
+  --glow-card: 0 4px 20px color-mix(in srgb, #2ba8a2 14%, transparent);
+  --glow-teal: 0 4px 20px color-mix(in srgb, #2ba8a2 30%, transparent);
+  --glow-gold: 0 4px 20px color-mix(in srgb, #ffd23f 45%, transparent);
+  --glow-coral: 0 4px 20px color-mix(in srgb, #ef6c4a 35%, transparent);
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-bg: var(--primary-bg);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-dark: var(--accent-dark);
+  --color-coral: var(--coral);
+  --color-coral-light: var(--coral-light);
+  --color-coral-dark: var(--coral-dark);
+  --color-cream: var(--cream);
+  --color-sky: var(--sky);
+  --color-surface-base: var(--surface-base);
+  --color-surface-card: var(--surface-card);
+  --color-success: var(--success);
+  --color-error: var(--error);
+
+  --shadow-card: var(--glow-card);
+  --shadow-glow-teal: var(--glow-teal);
+  --shadow-glow-gold: var(--glow-gold);
+  --shadow-glow-coral: var(--glow-coral);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--surface-base);
+  color: #24312f;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ลูกเล่นเล็กน้อยตาม DESIGN.md: เลือกพื้น Cream ให้ input */
+::selection {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* แถบเลื่อนกลมกลืนกับธีม */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--primary) 30%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--primary) 50%, transparent);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+/* ซ่อนแถบเลื่อนสำหรับแถบที่เลื่อนในแนวนอน (มือถือ) */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

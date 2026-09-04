@@ -1,0 +1,169 @@
+// ระบบจัดการร้านจำนำและขายสินค้าหน้าร้าน — SQLite schema
+// Prisma ORM 6 (ดู prisma/schema ตารางทั้งหมดด้านล่าง)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum PawnStatus {
+  ACTIVE // อยู่ระหว่างสัญญา / ยังไม่ไถ่ถอน
+  REDEEMED // ไถ่ถอนแล้ว (ลูกค้าจ่ายเงินต้น+ดอกเบี้ย)
+  FORFEITED // หลุดจำนำ → เอาเข้าขายใน POS
+  SOLD // ขายหน้าร้านไปแล้ว (หลังหลุดจำนำ)
+}
+
+enum PaymentMethod {
+  CASH // เงินสด
+  QR // PromptPay / QR
+  CARD // บัตรเครดิต/เดบิต
+  TRANSFER // โอนเงิน
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id        String   @id @default(cuid())
+  nationalId String  @unique // เลขบัตรประชาชน 13 หลัก
+  fullName  String
+  phone     String
+  createdAt DateTime @default(now())
+
+  pawnContracts PawnContract[]
+
+  @@index([fullName])
+}
+
+model PawnContract {
+  id               String     @id @default(cuid())
+  contractNumber   String     @unique // เช่น PC-20260904-001
+  customerId       String
+  customer         Customer   @relation(fields: [customerId], references: [id])
+  itemName         String // รายละเอียดสิ่งของที่จำนำ
+  image            String? // รูปสิ่งของ (อัปโหลดจากเครื่อง → public/pawn-items)
+  serialNumber     String?
+  storageBox       String? // ตำแหน่งกล่อง/ชั้นเก็บของ
+  principalAmount  Int // เงินต้นที่ให้ยืม (บาท)
+  interestRatePercent Int // ดอกเบี้ยต่อ 10 วัน เช่น 2 = 2% ต่องวด (10 วัน)
+  startDate        DateTime
+  dueDate          DateTime // คำนวณอัตโนมัติ = startDate + ระยะเวลา
+  status           PawnStatus @default(ACTIVE)
+  renewalCount     Int        @default(0) // จำนวนครั้งที่ต่อดอกเบี้ย
+  lastRenewedAt    DateTime?
+  forfeitPrice     Int? // ราคาที่ตั้งขายเมื่อหลุดจำนำ (default = เงินต้น)
+  forfeitedAt      DateTime?
+  redeemedAt       DateTime?
+  createdAt        DateTime   @default(now())
+
+  redemption PawnRedemption?
+  renewals   PawnRenewal[]
+  expense    Expense?
+  saleItems  SaleItem[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([createdAt])
+}
+
+model RetailProduct {
+  id          String  @id @default(cuid())
+  name        String
+  category    String
+  costPrice   Int // ต้นทุน (บาท)
+  sellPrice   Int // ราคาขาย (บาท)
+  quantity    Int
+  minQuantity Int      @default(0) // เตือนสต็อกต่ำ
+  image       String?  // path ใน /public/products (อัปโหลดจากเครื่อง) หรือ URL
+  archived    Boolean  @default(false) // true = ถูกลบ/ซ่อน (ยังเก็บประวัติการขาย)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  saleItems SaleItem[]
+
+  @@index([name])
+  @@index([category])
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  amount      Int // จำนวนเงิน (บาท)
+  category    String // เช่น PAWN_PRINCIPAL = จ่ายเงินต้นรับจำนำ
+  description String
+  contractId  String?      @unique // ผูกกับสัญญาจำนำ (ถ้ารายจ่ายเกิดจากสัญญา — สัญญาละ 1 รายการ)
+  contract    PawnContract? @relation(fields: [contractId], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@index([createdAt])
+  @@index([category])
+}
+
+model PawnRenewal {
+  id             String        @id @default(cuid())
+  contractId     String
+  contract       PawnContract  @relation(fields: [contractId], references: [id])
+  interestAmount Int // ดอกเบี้ยที่รับชำระต่องวด (บาท)
+  roundNumber    Int // ต่อรอบที่เท่าไร (renewalCount หลังอัปเดต)
+  dueDateBefore  DateTime // Due date ก่อนต่อ
+  dueDateAfter   DateTime // Due date ใหม่ (+10 วัน)
+  paymentMethod  PaymentMethod @default(CASH)
+  createdAt      DateTime      @default(now())
+
+  @@index([createdAt])
+  @@index([contractId])
+}
+
+model PawnRedemption {
+  id             String        @id @default(cuid())
+  contractId     String        @unique
+  contract       PawnContract  @relation(fields: [contractId], references: [id])
+  principal      Int // เงินต้นที่รับคืน
+  interest       Int // ดอกเบี้ยค้างชำระที่เก็บเพิ่ม (0 ถ้าไม่เกินกำหนด)
+  total          Int // ยอดรวมที่ลูกค้าจ่าย
+  paymentMethod  PaymentMethod @default(CASH)
+  receivedAmount Int? // เงินที่รับมา (กรณีเงินสด)
+  changeAmount   Int? // เงินทอน
+  createdAt      DateTime      @default(now())
+
+  @@index([createdAt])
+}
+
+model SaleOrder {
+  id             String        @id @default(cuid())
+  receiptNumber  String        @unique // เช่น R-20260904-0001
+  totalAmount    Int // ยอดรวม (บาท)
+  paymentMethod  PaymentMethod @default(CASH)
+  receivedAmount Int? // เงินที่รับมา (กรณีเงินสด)
+  changeAmount   Int? // เงินทอน
+  createdAt      DateTime      @default(now())
+
+  items SaleItem[]
+
+  @@index([createdAt])
+}
+
+model SaleItem {
+  id             String        @id @default(cuid())
+  saleOrderId    String
+  saleOrder      SaleOrder     @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+  productId      String? // สินค้าทั่วไป (ถ้าขายสินค้าสต็อก)
+  product        RetailProduct? @relation(fields: [productId], references: [id])
+  pawnContractId String? // ของหลุดจำนำ (ถ้าขายของที่หลุดจำนำ)
+  pawnContract   PawnContract? @relation(fields: [pawnContractId], references: [id])
+  quantity       Int
+  unitPrice      Int // ราคาต่อหน่วย ณ เวลาขาย (กันราคาเปลี่ยนทีหลัง)
+
+  @@index([saleOrderId])
+  @@index([productId])
+  @@index([pawnContractId])
+}
