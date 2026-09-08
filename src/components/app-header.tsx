@@ -63,6 +63,7 @@ export function AppHeader() {
               <Link
                 key={href}
                 href={href}
+                prefetch={false} // <-- ปิดการโหลดล่วงหน้าเพื่อทดสอบ Loading
                 className={cn(
                   "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition-all",
                   active
