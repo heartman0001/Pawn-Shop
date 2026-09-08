@@ -16,9 +16,9 @@ export async function nextSequentialNumber(
   const todayPrefix = `${prefix}-${ymd(date)}-`;
   const count = await tx.$queryRaw<{ c: number }[]>`
     SELECT COUNT(*) as c FROM (
-      SELECT contractNumber AS n FROM "PawnContract" WHERE contractNumber LIKE ${`${todayPrefix}%`}
+      SELECT "contractNumber" AS n FROM "PawnContract" WHERE "contractNumber" LIKE ${`${todayPrefix}%`}
       UNION ALL
-      SELECT receiptNumber AS n FROM "SaleOrder" WHERE receiptNumber LIKE ${`${todayPrefix}%`}
+      SELECT "receiptNumber" AS n FROM "SaleOrder" WHERE "receiptNumber" LIKE ${`${todayPrefix}%`}
     )
   `;
   const seq = Number(count[0]?.c ?? 0) + 1;

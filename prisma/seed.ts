@@ -2,16 +2,9 @@
  * Seed ข้อมูลตัวอย่าง (สินค้าหน้าร้าน)
  * รัน: npm run db:seed
  */
-import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
-const datasourceUrl = process.env.DATABASE_URL
-  ? undefined
-  : `file:${path.join(process.cwd(), "prisma", "dev.db").replace(/\\/g, "/")}`;
-
-const prisma = new PrismaClient({
-  ...(datasourceUrl ? { datasourceUrl } : {}),
-});
+const prisma = new PrismaClient();
 
 type SeedProduct = {
   name: string;
@@ -48,7 +41,7 @@ const PRODUCTS: SeedProduct[] = [
 async function main() {
   const existing = await prisma.retailProduct.count();
   if (existing > 0) {
-    console.log(`มีสินค้าอยู่แล้ว ${existing} รายการ — ข้ามการ seed (ลบ prisma/dev.db เพื่อเริ่มใหม่)`);
+    console.log(`มีสินค้าอยู่แล้ว ${existing} รายการ — ข้ามการ seed`);
     return;
   }
 

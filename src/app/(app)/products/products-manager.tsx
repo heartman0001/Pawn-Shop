@@ -116,8 +116,8 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
       if (result.ok) {
         notify(
           result.mode === "deleted"
-            ? `ลบสินค้า “${product.name}” แล้ว`
-            : `“${product.name}” เคยมีประวัติการขาย → ซ่อนออกจากสต็อกแล้ว (เก็บประวัติใบเสร็จ)`
+            ? `ลบสินค้า "${product.name}" แล้ว`
+            : `"${product.name}" เคยมีประวัติการขาย → ซ่อนออกจากสต็อกแล้ว (เก็บประวัติใบเสร็จ)`
         );
         router.refresh();
       } else {
@@ -284,85 +284,200 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
         </div>
       </div>
 
-      {/* ตารางสินค้า */}
+      {/* ตารางสินค้า — mobile: card / desktop: table */}
       <div className="overflow-x-auto rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead>
-            <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
-              <th className="px-4 py-3 font-bold">สินค้า</th>
-              <th className="px-4 py-3 font-bold">ราคา</th>
-              <th className="px-4 py-3 font-bold">สต็อก</th>
-              <th className="px-4 py-3 font-bold">สถานะ</th>
-              <th className="px-4 py-3 text-right font-bold">จัดการ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">
-            {products.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-zinc-400">
-                  ยังไม่มีสินค้า — เพิ่มสินค้าแรกด้านบน หรือรัน{" "}
-                  <code>npm run db:seed</code>
-                </td>
+        {/* Desktop: table */}
+        <div className="hidden divide-y divide-zinc-100 sm:block">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
+                <th className="px-4 py-3 font-bold">สินค้า</th>
+                <th className="px-4 py-3 font-bold">ราคา</th>
+                <th className="px-4 py-3 font-bold">สต็อก</th>
+                <th className="px-4 py-3 font-bold">สถานะ</th>
+                <th className="px-4 py-3 text-right font-bold">จัดการ</th>
               </tr>
-            )}
-            {sortedProducts.map((p) => (
-              <tr key={p.id} className="hover:bg-primary/5">
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary/50">
-                      {p.image ? (
-                        <img
-                          src={p.image}
-                          alt={p.name}
-                          className="h-9 w-9 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <Package className="h-4 w-4" />
-                      )}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-bold">{p.name}</p>
-                      <p className="text-xs text-zinc-400">{p.category}</p>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {products.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-zinc-400">
+                    ยังไม่มีสินค้า — เพิ่มสินค้าแรกด้านบน หรือรัน{" "}
+                    <code>npm run db:seed</code>
+                  </td>
+                </tr>
+              )}
+              {sortedProducts.map((p) => (
+                <tr key={p.id} className="hover:bg-primary/5">
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary/50">
+                        {p.image ? (
+                          <img
+                            src={p.image}
+                            alt={p.name}
+                            className="h-9 w-9 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <Package className="h-4 w-4" />
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-bold">{p.name}</p>
+                        <p className="text-xs text-zinc-400">{p.category}</p>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-4 py-2.5">
-                  {editing === p.id ? (
-                    <PriceEditor
-                      product={p}
-                      onDone={() => {
-                        setEditing(null);
-                        router.refresh();
-                      }}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {editing === p.id ? (
+                      <PriceEditor
+                        product={p}
+                        onDone={() => {
+                          setEditing(null);
+                          router.refresh();
+                        }}
+                      />
+                    ) : (
+                      <div>
+                        <p className="font-extrabold text-zinc-800">
+                          {formatBaht(p.sellPrice)}
+                        </p>
+                        <p className="text-xs text-zinc-400">
+                          ทุน {formatBaht(p.costPrice)}
+                        </p>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <QtyBtn
+                        label="-"
+                        disabled={p.quantity <= 0}
+                        onClick={() => changeQty(p.id, p.quantity - 1)}
+                      />
+                      <span className="w-10 text-center font-extrabold">
+                        {p.quantity}
+                      </span>
+                      <QtyBtn
+                        label="+"
+                        onClick={() => changeQty(p.id, p.quantity + 1)}
+                      />
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {p.quantity <= 0 ? (
+                      <Badge tone="coral">หมด</Badge>
+                    ) : p.quantity <= p.minQuantity ? (
+                      <Badge tone="gold">สต็อกต่ำ</Badge>
+                    ) : (
+                      <Badge tone="green">ปกติ</Badge>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center justify-end gap-1.5">
+                      {confirmDeleteId === p.id ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-coral-dark">
+                            ยืนยันลบ?
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => removeProduct(p)}
+                            disabled={pending}
+                          >
+                            ใช่, ลบเลย
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setConfirmDeleteId(null)}
+                          >
+                            ยกเลิก
+                          </Button>
+                        </span>
+                      ) : (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setEditing(editing === p.id ? null : p.id)
+                            }
+                          >
+                            แก้ไขราคา
+                          </Button>
+                          <button
+                            onClick={() => setConfirmDeleteId(p.id)}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-coral/10 hover:text-coral-dark"
+                            title="ลบสินค้า"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile: card stack */}
+        <div className="divide-y divide-zinc-100 sm:hidden">
+          {products.length === 0 && (
+            <div className="px-4 py-10 text-center text-sm text-zinc-400">
+              ยังไม่มีสินค้า — เพิ่มสินค้าแรกด้านบน
+            </div>
+          )}
+          {sortedProducts.map((p) => (
+            <div key={p.id} className="px-4 py-3">
+              {/* ซ้าย: ชื่อ + รูป */}
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary/50">
+                  {p.image ? (
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="h-10 w-10 rounded-lg object-cover"
                     />
                   ) : (
-                    <div>
-                      <p className="font-extrabold text-zinc-800">
-                        {formatBaht(p.sellPrice)}
-                      </p>
-                      <p className="text-xs text-zinc-400">
-                        ทุน {formatBaht(p.costPrice)}
-                      </p>
-                    </div>
+                    <Package className="h-5 w-5" />
                   )}
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <QtyBtn
-                      label="−"
-                      disabled={p.quantity <= 0}
-                      onClick={() => changeQty(p.id, p.quantity - 1)}
-                    />
-                    <span className="w-10 text-center font-extrabold">
-                      {p.quantity}
-                    </span>
-                    <QtyBtn
-                      label="+"
-                      onClick={() => changeQty(p.id, p.quantity + 1)}
-                    />
-                  </div>
-                </td>
-                <td className="px-4 py-2.5">
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-bold">{p.name}</p>
+                  <p className="text-xs text-zinc-400">{p.category}</p>
+                </div>
+              </div>
+
+              {/* กลาง: ราคา + สต็อก + สถานะ */}
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                <div className="font-extrabold text-zinc-800">
+                  {formatBaht(p.sellPrice)}
+                </div>
+                <div className="text-zinc-400">
+                  ทุน {formatBaht(p.costPrice)}
+                </div>
+
+                {/* ปุ่ม +/- จำนวน */}
+                <div className="flex items-center gap-1.5">
+                  <QtyBtn
+                    label="-"
+                    disabled={p.quantity <= 0}
+                    onClick={() => changeQty(p.id, p.quantity - 1)}
+                  />
+                  <span className="w-8 text-center font-extrabold">
+                    {p.quantity}
+                  </span>
+                  <QtyBtn
+                    label="+"
+                    onClick={() => changeQty(p.id, p.quantity + 1)}
+                  />
+                </div>
+
+                <div className="ml-auto flex items-center gap-2">
                   {p.quantity <= 0 ? (
                     <Badge tone="coral">หมด</Badge>
                   ) : p.quantity <= p.minQuantity ? (
@@ -370,56 +485,38 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
                   ) : (
                     <Badge tone="green">ปกติ</Badge>
                   )}
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center justify-end gap-1.5">
-                    {confirmDeleteId === p.id ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-coral-dark">
-                          ยืนยันลบ?
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => removeProduct(p)}
-                          disabled={pending}
-                        >
-                          ใช่, ลบเลย
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
-                          ยกเลิก
-                        </Button>
-                      </span>
-                    ) : (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setEditing(editing === p.id ? null : p.id)
-                          }
-                        >
-                          แก้ไขราคา
-                        </Button>
-                        <button
-                          onClick={() => setConfirmDeleteId(p.id)}
-                          className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-coral/10 hover:text-coral-dark"
-                          title="ลบสินค้า"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </div>
+
+              {/* ขวา: ปุ่มจัดการ */}
+              <div className="mt-2 flex items-center justify-end gap-1.5">
+                {confirmDeleteId === p.id ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-coral-dark">ยืนยันลบ?</span>
+                    <Button size="sm" variant="danger" onClick={() => removeProduct(p)} disabled={pending}>
+                      ใช่, ลบเลย
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>
+                      ยกเลิก
+                    </Button>
+                  </span>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => setEditing(editing === p.id ? null : p.id)}>
+                      แก้ไขราคา
+                    </Button>
+                    <button
+                      onClick={() => setConfirmDeleteId(p.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-coral/10 hover:text-coral-dark"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

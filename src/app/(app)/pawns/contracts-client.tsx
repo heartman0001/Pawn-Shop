@@ -8,6 +8,7 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronRight,
+  Filter,
   Gavel,
   HandCoins,
   Search,
@@ -53,6 +54,7 @@ export function PawnContractsClient({
   const router = useRouter();
   const [filter, setFilter] = useState<StatusFilter>("ALL");
   const [search, setSearch] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expanded, setExpanded] = useState<ExpandKey | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -80,30 +82,73 @@ export function PawnContractsClient({
 
   return (
     <div className="space-y-3">
-      {/* filter + search */}
-      <div className="no-scrollbar flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap">
-        {FILTERS.map((f) => (
+      {/* filter + search — mobile: burger dropdown; desktop: inline chips */}
+      <div className="relative">
+        {/* Mobile: hamburger button */}
+        <div className="sm:hidden">
           <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors",
-              filter === f.key
-                ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
-                : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
-            )}
+            type="button"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            className="shrink-0 rounded-full border-2 border-primary/15 bg-white p-2 text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
+            aria-label="เมนูกรอง"
           >
-            {f.label}
+            <Filter className="h-5 w-5" />
           </button>
-        ))}
-        <div className="relative w-full sm:ml-auto sm:w-auto sm:min-w-[220px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหาสัญญา / ชื่อลูกค้า / สิ่งของ…"
-            className="pl-9"
-          />
+
+          {/* Dropdown menu */}
+          {mobileMenuOpen && (
+            <div className="absolute right-0 top-12 z-50 w-56 rounded-xl border-2 border-primary/10 bg-surface-card p-3 shadow-card">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-400">
+                กรองตามสถานะ
+              </p>
+              <div className="flex flex-col gap-1">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => {
+                      setFilter(f.key);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={cn(
+                      "w-full rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                      filter === f.key
+                        ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
+                        : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
+                    )}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop: inline chips */}
+        <div className="hidden sm:flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={cn(
+                "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors",
+                filter === f.key
+                  ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
+                  : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+          <div className="relative ml-auto w-auto min-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ค้นหาสัญญา / ชื่อลูกค้า / สิ่งของ…"
+              className="pl-9"
+            />
+          </div>
         </div>
       </div>
 

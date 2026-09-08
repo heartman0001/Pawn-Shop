@@ -8,6 +8,10 @@
    ============================================================ */
 
 :root {
+  /* Force light mode — ป้องกัน dark mode บน mobile / OS */
+  color-scheme: light;
+  forced-color-adjust: none;
+
   /* Colors — จาก DESIGN.md */
   --primary: #2ba8a2; /* teal หลัก */
   --primary-light: #3cc4bd; /* teal ไล่/ hover */

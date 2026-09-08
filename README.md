@@ -3,7 +3,7 @@
 ระบบใช้งานภายในร้านคนเดียว รันแบบ Local Server — รับจำนำ คิดดอกเบี้ย ตัดหลุดจำนำ
 และขายสินค้าหน้าร้าน (POS) โดยไม่ใช้ Barcode เน้น **ค้นหา + คลิกรูปภาพ** แทน
 
-- **Stack:** Next.js 16 (App Router) · TypeScript · Prisma ORM + SQLite · Tailwind CSS v4
+- **Stack:** Next.js 16 (App Router) · TypeScript · Prisma ORM + PostgreSQL (Supabase) · Tailwind CSS v4
 - **Auth:** ล็อกอินด้วย Password/PIN จาก `.env` (ไม่ต้องสมัครสมาชิก) — เซสชันแบบ signed cookie (JWT ผ่าน `jose`)
 - **State & Form:** Zustand (ตะกร้า POS) · React Hook Form + Zod
 
@@ -21,8 +21,8 @@ npm install
 # 2) สร้าง .env (แก้รหัสผ่าน + AUTH_SECRET ด้วย!)
 cp .env.example .env
 
-# 3) สร้างฐานข้อมูล SQLite + seed สินค้าตัวอย่าง
-npm run db:push     # prisma db push (สร้างตาราง)
+# 3) สร้างฐานข้อมูลบน Supabase + seed สินค้าตัวอย่าง
+npm run db:push     # prisma db push (สร้างตารางบน Supabase)
 npm run db:seed     # ใส่สินค้าตัวอย่าง (รันครั้งเดียว)
 
 # 4) รัน
@@ -30,8 +30,8 @@ npm run dev
 # เปิด http://localhost:3000 → เข้าสู่ระบบด้วย ADMIN_PASSWORD
 ```
 
-> ถ้ายังไม่สร้าง `.env` ระบบจะใช้ค่า default สำหรับ dev (รหัสผ่าน `pawn1234`,
-> ฐานข้อมูล `prisma/dev.db`) และแสดง warning — **เปลี่ยนก่อนใช้งานจริง**
+> ถ้ายังไม่ได้ตั้ง `DATABASE_URL`/`DIRECT_URL` ใน `.env` ระบบจะ error พร้อมข้อความแจ้งเตือน — ดูหัวข้อ Supabase ด้านล่าง
+> (รหัสผ่าน dev default `pawn1234` ใช้ได้เฉพาะตอนยังไม่ตั้ง `ADMIN_PASSWORD` — **เปลี่ยนก่อนใช้งานจริง**)
 
 ---
 
@@ -41,8 +41,7 @@ npm run dev
 ├── prisma/
 │   ├── schema.prisma        # ตารางทั้งหมด (Customer, PawnContract, RetailProduct,
 │   │                        #  SaleOrder, SaleItem + enum สถานะ/การชำระเงิน)
-│   ├── seed.ts              # ข้อมูลสินค้าตัวอย่าง
-│   └── dev.db               # ฐานข้อมูล SQLite (สร้างอัตโนมัติ, อย่า commit)
+│   └── seed.ts              # ข้อมูลสินค้าตัวอย่าง
 ├── public/products/         # รูปสินค้าตัวอย่าง + รูปสินค้าที่อัปโหลดจากหน้าเว็บ (เก็บอัตโนมัติ)
 ├── public/pawn-items/        # รูปสิ่งของที่จำนำ (แนบตอนรับจำนำ)
 └── src/
@@ -134,7 +133,8 @@ npm run dev
 
 | ตัวแปร | ความหมาย |
 | --- | --- |
-| `DATABASE_URL` | ตำแหน่ง SQLite เช่น `file:./dev.db` (อยู่ในโฟลเดอร์ prisma/) |
+| `DATABASE_URL` | Supabase **Transaction pooler** connection string (port 6543 + `?pgbouncer=true` — ใช้ตอนรันแอป) |
+| `DIRECT_URL` | Supabase **Direct** connection string (port 5432 — ใช้ตอน `prisma db push`/migrate) |
 | `ADMIN_PASSWORD` | รหัสผ่านเข้าใช้ระบบ (ตรวจตรงๆ ไม่มี user ใน DB) |
 | `AUTH_SECRET` | คีย์เซ็น cookie session — สร้างด้วย `openssl rand -base64 32` |
 
@@ -149,10 +149,34 @@ npm run db:seed      # ใส่ข้อมูลตัวอย่าง
 npm run db:studio    # เปิด Prisma Studio ดู/แก้ข้อมูลใน DB
 ```
 
+## ฐานข้อมูลบน Supabase (PostgreSQL)
+
+ฐานข้อมูลอยู่บน **Supabase** (PostgreSQL แบบ Cloud) ส่วนรูปสินค้า/สิ่งของยังเก็บที่เครื่อง
+(`public/products/`, `public/pawn-items/`) — ดังนั้นตัวแอปต้องรันที่เครื่อง/เซิร์ฟเวอร์ของร้าน
+ข้อมูลทั้งหมดจะขึ้น Cloud แต่รูปยังอยู่ local
+
+**สร้างโปรเจกต์:** [supabase.com](https://supabase.com) → New project (ฟรี tier ได้)
+
+**ดึง connection string:** Project Settings → Database → Connection string
+- `DATABASE_URL` = แบบ **Transaction** (port 6543) + ต่อท้าย `?pgbouncer=true`
+- `DIRECT_URL` = แบบ **Direct** (port 5432) — ใช้ตอน `prisma db push` / migrate
+
+> `prisma db push` ต้องใช้ direct connection (ผ่าน `DIRECT_URL`) ไม่ใช่ pooler
+
+**สร้างตาราง + seed:**
+```bash
+npm run db:push   # สร้างตาราง (รันครั้งแรก / ตอนแก้ schema)
+npm run db:seed   # ใส่สินค้าตัวอย่าง
+```
+
+**Backup:** ข้อมูลอยู่บน Supabase — backup ได้จาก Dashboard (Database → Backups) หรือใช้ `pg_dump`
+
+---
+
 ## เปิดใช้นอกบ้าน (Hybrid Cloud ด้วย Cloudflare Tunnel)
 
 เหมาะกับรันในเครื่อง/เซิร์ฟเวอร์ที่ร้าน แล้วเข้าถึงจากที่อื่นผ่าน URL สาธารณะ —
-ข้อมูลยังอยู่ที่เครื่อง (SQLite ไม่ได้ขึ้น Cloud) Cloudflare แค่ส่ง traffic เข้ามา
+ข้อมูลอยู่บน Supabase (PostgreSQL Cloud) ส่วน Cloudflare แค่ส่ง traffic เข้ามาที่แอปที่รันในเครื่อง
 
 **ทดสอบเร็ว (ไม่ต้องมีโดเมน/bัญชี):**
 ```bash
@@ -175,23 +199,22 @@ cloudflared tunnel --url http://localhost:3000
 
 **สิ่งที่ต้องทำบนเครื่องแอป:**
 - ตั้งค่าใน `.env` ก่อนรัน production: `AUTH_SECRET` (`openssl rand -base64 32`),
-  `ADMIN_PASSWORD` รหัสจริง และ `DATABASE_URL` เป็น absolute path เช่น
-  `file:D:/shop/pawnshop/prisma/dev.db` (production จะ error ถ้าไม่ตั้ง)
+  `ADMIN_PASSWORD` รหัสจริง และ `DATABASE_URL`/`DIRECT_URL` จาก Supabase
+  (production จะ error ถ้าไม่ตั้ง)
 - ต้องรันแอปให้อยู่ตลอดด้วย เช่น `pm2 start npm --name pawn-shop -- run start`
   (หรือ Windows Task Scheduler / สคริปต์ตอน boot) — tunnel อย่างเดียวไม่พอ เพราะมันส่งไป localhost:3000
 - ระบบมีหน้า Login + proxy กันทุก route อยู่แล้ว แต่ถ้าต้องการชั้นป้องกันเพิ่ม
   เปิด Cloudflare **Access** (Zero Trust) บังหน้าไว้ได้
 - เครื่องต้องส่งออกอินเทอร์เน็ตถึง Cloudflare ได้ (port **7844**)
-- Backup `prisma/dev.db` เป็นประจำ (SQLite ไฟล์เดียวคัดลอกไปเก็บได้เลย)
+- Backup ข้อมูลจาก Supabase Dashboard (Database → Backups) เป็นประจำ
 
 ---
 
 ## หมายเหตุ / การตัดสินใจ
 
-- ใช้ **SQLite + Prisma 6** รองรับไฟล์เดียว backup ง่าย — พร้อมอัปเกรดเป็น PostgreSQL/Cockroach ได้โดยแก้ `datasource`
+- ใช้ **Supabase (PostgreSQL) + Prisma 6** — ข้อมูลบน Cloud ปลอดภัยกว่า backup อัตโนมัติ
 - ตัวเลขเงินทั้งหมดเก็บเป็น **จำนวนเต็มบาท (Int)** หลีกเลี่ยงปัญหา float
 - สถานะของของหลุดจำนำเมื่อขายไปแล้วจะเปลี่ยนเป็น `SOLD` (ประวัติอ้างอิงได้จาก `SaleItem.pawnContractId`)
 - ออกแบบมาให้ใช้คนเดียวในร้าน — ถ้าจะเปิดหลายเครื่อง/หลายสาขา ควรเพิ่มระบบ user, ปรับ Proxy matcher
-  และเปลี่ยนฐานข้อมูลเป็น PostgreSQL ก่อน
 - การแนบรูปเขียนไฟล์ลง `public/products/` และ `public/pawn-items/` โดยตรง จึงเหมาะกับรันในเครื่อง/server
   ที่เขียนไฟล์ได้ (ถ้า deploy แบบ serverless ควรเปลี่ยนไปเก็บรูปที่ object storage แทน)

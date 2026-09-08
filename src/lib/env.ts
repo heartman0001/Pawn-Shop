@@ -19,10 +19,7 @@ export function getAdminPassword(): string {
   return password;
 }
 
-/** URL ของ SQLite database */
+/** URL ของ PostgreSQL database (Supabase) — ต้องตั้งค่าใน .env */
 export function getDatabaseUrl(): string {
-  return (
-    process.env.DATABASE_URL ??
-    "file:./dev.db" // อยู่ในโฟลเดอร์ prisma/ เมื่อรันผ่าน Prisma CLI
-  );
+  return process.env.DATABASE_URL ?? "";
 }

@@ -24,7 +24,11 @@ export default function RootLayout({
     <html
       lang="th"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="light"
     >
+      <head>
+        <meta name="theme-color" content="#eff8f7" />
+      </head>
       <body className="min-h-full bg-surface-base text-zinc-800">
         {children}
       </body>
