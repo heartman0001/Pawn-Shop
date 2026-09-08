@@ -67,7 +67,7 @@ export function CustomerSearch({ customers }: { customers: CustomerRow[] }) {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-zinc-400">
-                    ไม่พบลูกค้า "{search}"
+                    ไม่พบลูกค้า “{search}”
                   </td>
                 </tr>
               )}
@@ -95,29 +95,43 @@ export function CustomerSearch({ customers }: { customers: CustomerRow[] }) {
         </div>
 
         {/* Mobile: card stack */}
-        <div className="divide-y divide-zinc-100 sm:hidden">
+        <div className="space-y-3 p-3 sm:hidden">
           {filtered.length === 0 && (
-            <div className="px-4 py-10 text-center text-sm text-zinc-400">
-              ไม่พบลูกค้า "{search}"
+            <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
+              ไม่พบลูกค้า “{search}”
             </div>
           )}
           {filtered.map((c) => (
-            <div key={c.id} className="px-4 py-3">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                <span className="font-medium">{c.fullName}</span>
-                <span className="text-zinc-600">{c.nationalId}</span>
-                <span className="text-zinc-600">{c.phone || "—"}</span>
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+            <div
+              key={c.id}
+              className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-bold text-primary-dark">{c.fullName}</span>
                 {c.activeCount > 0 ? (
                   <Badge tone="teal">
                     {c.activeCount} active / {c.contractCount} สัญญา
                   </Badge>
                 ) : (
-                  <span className="text-zinc-500">{c.contractCount} สัญญา</span>
+                  <span className="whitespace-nowrap text-sm text-zinc-500">
+                    {c.contractCount} สัญญา
+                  </span>
                 )}
-                <span>สมัครเมื่อ {formatDateTime(c.createdAt)}</span>
               </div>
+              <dl className="mt-3 space-y-1.5 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-zinc-400">เลขบัตรประชาชน</dt>
+                  <dd className="text-zinc-700">{c.nationalId}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-zinc-400">โทรศัพท์</dt>
+                  <dd className="text-zinc-700">{c.phone || "—"}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-zinc-400">สมัครเมื่อ</dt>
+                  <dd className="text-zinc-700">{formatDateTime(c.createdAt)}</dd>
+                </div>
+              </dl>
             </div>
           ))}
         </div>

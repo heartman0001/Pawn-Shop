@@ -425,15 +425,18 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
         </div>
 
         {/* Mobile: card stack */}
-        <div className="divide-y divide-zinc-100 sm:hidden">
+        <div className="space-y-3 p-3 sm:hidden">
           {products.length === 0 && (
-            <div className="px-4 py-10 text-center text-sm text-zinc-400">
+            <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
               ยังไม่มีสินค้า — เพิ่มสินค้าแรกด้านบน
             </div>
           )}
           {sortedProducts.map((p) => (
-            <div key={p.id} className="px-4 py-3">
-              {/* ซ้าย: ชื่อ + รูป */}
+            <div
+              key={p.id}
+              className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
+            >
+              {/* header: รูป + ชื่อ + สถานะ */}
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary/50">
                   {p.image ? (
@@ -446,63 +449,101 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
                     <Package className="h-5 w-5" />
                   )}
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-bold">{p.name}</p>
                   <p className="text-xs text-zinc-400">{p.category}</p>
                 </div>
+                {p.quantity <= 0 ? (
+                  <Badge tone="coral">หมด</Badge>
+                ) : p.quantity <= p.minQuantity ? (
+                  <Badge tone="gold">สต็อกต่ำ</Badge>
+                ) : (
+                  <Badge tone="green">ปกติ</Badge>
+                )}
               </div>
 
-              {/* กลาง: ราคา + สต็อก + สถานะ */}
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                <div className="font-extrabold text-zinc-800">
-                  {formatBaht(p.sellPrice)}
+              {/* รายละเอียด */}
+              <dl className="mt-3 space-y-1.5 text-sm">
+                {editing === p.id ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-zinc-400">แก้ไขราคา</dt>
+                    <dd>
+                      <PriceEditor
+                        product={p}
+                        onDone={() => {
+                          setEditing(null);
+                          router.refresh();
+                        }}
+                      />
+                    </dd>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-zinc-400">ราคาขาย</dt>
+                      <dd className="font-extrabold text-zinc-800">
+                        {formatBaht(p.sellPrice)}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-zinc-400">ต้นทุน</dt>
+                      <dd className="text-zinc-700">{formatBaht(p.costPrice)}</dd>
+                    </div>
+                  </>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-zinc-400">สต็อก</dt>
+                  <dd>
+                    <div className="flex items-center gap-1.5">
+                      <QtyBtn
+                        label="-"
+                        disabled={p.quantity <= 0}
+                        onClick={() => changeQty(p.id, p.quantity - 1)}
+                      />
+                      <span className="w-8 text-center font-extrabold">
+                        {p.quantity}
+                      </span>
+                      <QtyBtn
+                        label="+"
+                        onClick={() => changeQty(p.id, p.quantity + 1)}
+                      />
+                    </div>
+                  </dd>
                 </div>
-                <div className="text-zinc-400">
-                  ทุน {formatBaht(p.costPrice)}
-                </div>
+              </dl>
 
-                {/* ปุ่ม +/- จำนวน */}
-                <div className="flex items-center gap-1.5">
-                  <QtyBtn
-                    label="-"
-                    disabled={p.quantity <= 0}
-                    onClick={() => changeQty(p.id, p.quantity - 1)}
-                  />
-                  <span className="w-8 text-center font-extrabold">
-                    {p.quantity}
-                  </span>
-                  <QtyBtn
-                    label="+"
-                    onClick={() => changeQty(p.id, p.quantity + 1)}
-                  />
-                </div>
-
-                <div className="ml-auto flex items-center gap-2">
-                  {p.quantity <= 0 ? (
-                    <Badge tone="coral">หมด</Badge>
-                  ) : p.quantity <= p.minQuantity ? (
-                    <Badge tone="gold">สต็อกต่ำ</Badge>
-                  ) : (
-                    <Badge tone="green">ปกติ</Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* ขวา: ปุ่มจัดการ */}
-              <div className="mt-2 flex items-center justify-end gap-1.5">
+              {/* จัดการ */}
+              <div className="mt-3 flex items-center justify-end gap-1.5 border-t-2 border-dashed border-primary/20 pt-3">
                 {confirmDeleteId === p.id ? (
                   <span className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-coral-dark">ยืนยันลบ?</span>
-                    <Button size="sm" variant="danger" onClick={() => removeProduct(p)} disabled={pending}>
+                    <span className="text-xs font-bold text-coral-dark">
+                      ยืนยันลบ?
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => removeProduct(p)}
+                      disabled={pending}
+                    >
                       ใช่, ลบเลย
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setConfirmDeleteId(null)}
+                    >
                       ยกเลิก
                     </Button>
                   </span>
                 ) : (
                   <>
-                    <Button variant="ghost" size="sm" onClick={() => setEditing(editing === p.id ? null : p.id)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setEditing(editing === p.id ? null : p.id)
+                      }
+                    >
                       แก้ไขราคา
                     </Button>
                     <button

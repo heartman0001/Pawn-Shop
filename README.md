@@ -135,6 +135,8 @@ npm run dev
 | --- | --- |
 | `DATABASE_URL` | Supabase **Transaction pooler** connection string (port 6543 + `?pgbouncer=true` — ใช้ตอนรันแอป) |
 | `DIRECT_URL` | Supabase **Direct** connection string (port 5432 — ใช้ตอน `prisma db push`/migrate) |
+| `SUPABASE_URL` | Project URL ของ Supabase (Project Settings → API) — ใช้สำหรับอัปโหลดรูป |
+| `SUPABASE_SERVICE_ROLE_KEY` | service_role key (ฝั่ง server เท่านั้น) — ใช้อัปโหลด/ลบรูปใน Storage |
 | `ADMIN_PASSWORD` | รหัสผ่านเข้าใช้ระบบ (ตรวจตรงๆ ไม่มี user ใน DB) |
 | `AUTH_SECRET` | คีย์เซ็น cookie session — สร้างด้วย `openssl rand -base64 32` |
 
@@ -151,9 +153,8 @@ npm run db:studio    # เปิด Prisma Studio ดู/แก้ข้อม�
 
 ## ฐานข้อมูลบน Supabase (PostgreSQL)
 
-ฐานข้อมูลอยู่บน **Supabase** (PostgreSQL แบบ Cloud) ส่วนรูปสินค้า/สิ่งของยังเก็บที่เครื่อง
-(`public/products/`, `public/pawn-items/`) — ดังนั้นตัวแอปต้องรันที่เครื่อง/เซิร์ฟเวอร์ของร้าน
-ข้อมูลทั้งหมดจะขึ้น Cloud แต่รูปยังอยู่ local
+ฐานข้อมูลอยู่บน **Supabase** (PostgreSQL แบบ Cloud) และรูปที่อัปโหลดเก็บใน
+**Supabase Storage** (bucket `pawn-images` แบบ Public) — deploy ได้ทั้ง Vercel และเครื่อง/server
 
 **สร้างโปรเจกต์:** [supabase.com](https://supabase.com) → New project (ฟรี tier ได้)
 
@@ -163,11 +164,20 @@ npm run db:studio    # เปิด Prisma Studio ดู/แก้ข้อม�
 
 > `prisma db push` ต้องใช้ direct connection (ผ่าน `DIRECT_URL`) ไม่ใช่ pooler
 
+**ตั้งค่า Supabase Storage (สำหรับรูปอัปโหลด):**
+1. Project Settings → **API** → คัดลอก **Project URL** ใส่ `SUPABASE_URL`
+2. คัดลอก **service_role** key ใส่ `SUPABASE_SERVICE_ROLE_KEY` (ห้ามเปิดเผย — ใช้ฝั่ง server เท่านั้น)
+3. Dashboard → **Storage** → **New bucket** → ชื่อ `pawn-images` → เปิด **Public**
+   (รูปจะเก็บเป็นโฟลเดอร์ `products/` และ `pawn-items/` ใน bucket)
+
 **สร้างตาราง + seed:**
 ```bash
 npm run db:push   # สร้างตาราง (รันครั้งแรก / ตอนแก้ schema)
 npm run db:seed   # ใส่สินค้าตัวอย่าง
 ```
+
+> รูปสินค้าตัวอย่าง (seed) เป็น SVG ใน `public/products/` — deploy ไปกับแอปเป็น static ได้เลย
+> ส่วนรูปที่อัปโหลดจากหน้าเว็บจะไปอยู่ที่ Supabase Storage ทั้งหมด
 
 **Backup:** ข้อมูลอยู่บน Supabase — backup ได้จาก Dashboard (Database → Backups) หรือใช้ `pg_dump`
 
@@ -199,8 +209,8 @@ cloudflared tunnel --url http://localhost:3000
 
 **สิ่งที่ต้องทำบนเครื่องแอป:**
 - ตั้งค่าใน `.env` ก่อนรัน production: `AUTH_SECRET` (`openssl rand -base64 32`),
-  `ADMIN_PASSWORD` รหัสจริง และ `DATABASE_URL`/`DIRECT_URL` จาก Supabase
-  (production จะ error ถ้าไม่ตั้ง)
+  `ADMIN_PASSWORD` รหัสจริง, `DATABASE_URL`/`DIRECT_URL`, และ `SUPABASE_URL`/
+  `SUPABASE_SERVICE_ROLE_KEY` จาก Supabase (production จะ error ถ้าไม่ตั้ง)
 - ต้องรันแอปให้อยู่ตลอดด้วย เช่น `pm2 start npm --name pawn-shop -- run start`
   (หรือ Windows Task Scheduler / สคริปต์ตอน boot) — tunnel อย่างเดียวไม่พอ เพราะมันส่งไป localhost:3000
 - ระบบมีหน้า Login + proxy กันทุก route อยู่แล้ว แต่ถ้าต้องการชั้นป้องกันเพิ่ม
@@ -216,5 +226,5 @@ cloudflared tunnel --url http://localhost:3000
 - ตัวเลขเงินทั้งหมดเก็บเป็น **จำนวนเต็มบาท (Int)** หลีกเลี่ยงปัญหา float
 - สถานะของของหลุดจำนำเมื่อขายไปแล้วจะเปลี่ยนเป็น `SOLD` (ประวัติอ้างอิงได้จาก `SaleItem.pawnContractId`)
 - ออกแบบมาให้ใช้คนเดียวในร้าน — ถ้าจะเปิดหลายเครื่อง/หลายสาขา ควรเพิ่มระบบ user, ปรับ Proxy matcher
-- การแนบรูปเขียนไฟล์ลง `public/products/` และ `public/pawn-items/` โดยตรง จึงเหมาะกับรันในเครื่อง/server
-  ที่เขียนไฟล์ได้ (ถ้า deploy แบบ serverless ควรเปลี่ยนไปเก็บรูปที่ object storage แทน)
+- การแนบรูปอัปโหลดไป **Supabase Storage** (bucket `pawn-images`) และแสดงผลผ่าน public URL
+  — ใช้งานได้ทั้ง Vercel (serverless) และเครื่อง/server

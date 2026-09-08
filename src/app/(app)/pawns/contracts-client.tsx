@@ -152,24 +152,27 @@ export function PawnContractsClient({
         </div>
       </div>
 
-      {/* รายการสัญญา */}
-      <div className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
+      {/* รายการสัญญา — mobile: card stack / desktop: table rows */}
+      <div className="space-y-3 p-3 md:space-y-0 md:p-0 md:overflow-hidden md:rounded-2xl md:border-2 md:border-primary/10 md:bg-surface-card md:shadow-card">
         {filtered.length === 0 && (
           <p className="py-16 text-center text-sm text-zinc-400">
             ไม่พบสัญญาในเงื่อนไขนี้
           </p>
         )}
-        <ul className="divide-y divide-zinc-100">
+        <ul className="md:divide-y md:divide-zinc-100">
           {filtered.map((c) => {
             const overdue = isOverdue(c);
             const rowKey =
               expanded?.split(":")[0] === c.id ? expanded : null;
             return (
-              <li key={c.id}>
+              <li
+                key={c.id}
+                className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card md:overflow-visible md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none"
+              >
                 {/* แถวหลัก */}
                 <div
                   className={cn(
-                    "grid cursor-pointer grid-cols-1 items-center gap-2 px-4 py-3 transition-colors hover:bg-primary/5 md:grid-cols-[auto_1fr_auto]",
+                    "grid cursor-pointer grid-cols-1 items-center gap-2 p-0 transition-colors hover:bg-primary/5 md:grid-cols-[auto_1fr_auto] md:px-4 md:py-3",
                     expanded === `${c.id}:renew` ||
                       expanded === `${c.id}:forfeit` ||
                       expanded === `${c.id}:redeem`
@@ -398,7 +401,7 @@ function RenewForm({
   }
 
   return (
-    <div className="border-t-2 border-dashed border-primary/20 bg-primary-bg px-6 py-4">
+    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-primary/20 bg-primary-bg px-4 py-4 md:mx-0 md:mb-0 md:mt-0 md:px-6">
       <div className="flex flex-wrap items-end gap-4">
         <div className="text-sm">
           <p className="text-xs font-bold uppercase tracking-wide text-primary/60">
@@ -476,7 +479,7 @@ function ForfeitForm({
   }
 
   return (
-    <div className="border-t-2 border-dashed border-coral/30 bg-coral/5 px-6 py-4">
+    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-coral/30 bg-coral/5 px-4 py-4 md:mx-0 md:mb-0 md:mt-0 md:px-6">
       <div className="flex flex-wrap items-end gap-3">
         <div className="max-w-sm text-sm text-zinc-600">
           <p className="font-extrabold text-coral-dark">ตัดหลุดจำนำ?</p>
@@ -558,7 +561,7 @@ function RedeemForm({
   }
 
   return (
-    <div className="border-t-2 border-dashed border-success/30 bg-success/5 px-6 py-4">
+    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-success/30 bg-success/5 px-4 py-4 md:mx-0 md:mb-0 md:mt-0 md:px-6">
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
         <div className="flex items-center gap-2">
           <HandCoins className="h-5 w-5 text-success" />

@@ -268,6 +268,9 @@ export default async function ReportsPage({
         title={`บิลขายหน้าร้าน (${sales.length})`}
         total={formatBaht(posTotal)}
         tone="teal"
+        mobile={
+          sales.length === 0 ? <EmptyCard /> : <SalesCards rows={sales} />
+        }
       >
         {sales.length === 0 ? (
           <EmptyRow />
@@ -281,6 +284,9 @@ export default async function ReportsPage({
         title={`การไถ่ถอน (${redeems.length})`}
         total={formatBaht(redeemTotal)}
         tone="sky"
+        mobile={
+          redeems.length === 0 ? <EmptyCard /> : <RedeemCards rows={redeems} />
+        }
       >
         {redeems.length === 0 ? (
           <EmptyRow />
@@ -294,6 +300,9 @@ export default async function ReportsPage({
         title={`การต่อดอกเบี้ย (${renewals.length})`}
         total={formatBaht(renewTotal)}
         tone="coral"
+        mobile={
+          renewals.length === 0 ? <EmptyCard /> : <RenewCards rows={renewals} />
+        }
       >
         {renewals.length === 0 ? (
           <EmptyRow />
@@ -307,6 +316,9 @@ export default async function ReportsPage({
         title={`รายจ่าย — เงินต้นที่จ่ายรับจำนำ (${expenses.length})`}
         total={`−${formatBaht(expenseTotal)}`}
         tone="red"
+        mobile={
+          expenses.length === 0 ? <EmptyCard /> : <ExpenseCards rows={expenses} />
+        }
       >
         {expenses.length === 0 ? (
           <EmptyRow />
@@ -372,11 +384,13 @@ function ReportSection({
   title,
   total,
   tone,
+  mobile,
   children,
 }: {
   title: string;
   total: string;
   tone: "teal" | "sky" | "coral" | "red";
+  mobile?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const dot = {
@@ -394,7 +408,9 @@ function ReportSection({
         </h2>
         <span className="text-base font-extrabold text-zinc-800">{total}</span>
       </div>
-      <div className="overflow-x-auto">
+
+      {/* Desktop: table */}
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
@@ -408,6 +424,11 @@ function ReportSection({
           <tbody className="divide-y divide-zinc-100">{children}</tbody>
         </table>
       </div>
+
+      {/* Mobile: card stack */}
+      {mobile && (
+        <div className="space-y-3 p-3 sm:hidden">{mobile}</div>
+      )}
     </Card>
   );
 }
@@ -425,7 +446,55 @@ function EmptyRow() {
   );
 }
 
+function EmptyCard() {
+  return (
+    <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
+      ไม่มีรายการในช่วงเวลานี้
+    </div>
+  );
+}
+
+function ReportCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card">
+      {children}
+    </div>
+  );
+}
+
+function CardLine({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="shrink-0 text-zinc-400">{label}</dt>
+      <dd className="text-right text-zinc-700">{children}</dd>
+    </div>
+  );
+}
+
 // ---- ตารางบิลขาย ----
+function describeSale(r: {
+  items: { productId: string | null; quantity: number }[];
+}): string {
+  let retailQty = 0;
+  let pawnQty = 0;
+  for (const it of r.items) {
+    if (it.productId) retailQty += it.quantity;
+    else pawnQty += it.quantity;
+  }
+  return [
+    retailQty > 0 ? `สินค้าทั่วไป ${retailQty} ชิ้น` : "",
+    pawnQty > 0 ? `ของหลุดจำนำ ${pawnQty} ชิ้น` : "",
+  ]
+    .filter(Boolean)
+    .join(" + ");
+}
+
 function SalesTable({
   rows,
 }: {
@@ -440,18 +509,7 @@ function SalesTable({
   return (
     <>
       {rows.map((r) => {
-        let retailQty = 0;
-        let pawnQty = 0;
-        for (const it of r.items) {
-          if (it.productId) retailQty += it.quantity;
-          else pawnQty += it.quantity;
-        }
-        const desc = [
-          retailQty > 0 ? `สินค้าทั่วไป ${retailQty} ชิ้น` : "",
-          pawnQty > 0 ? `ของหลุดจำนำ ${pawnQty} ชิ้น` : "",
-        ]
-          .filter(Boolean)
-          .join(" + ");
+        const desc = describeSale(r);
         return (
           <tr key={r.receiptNumber} className="hover:bg-primary/5">
             <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
@@ -470,6 +528,41 @@ function SalesTable({
           </tr>
         );
       })}
+    </>
+  );
+}
+
+// ---- การ์ดบิลขาย (mobile) ----
+function SalesCards({
+  rows,
+}: {
+  rows: Parameters<typeof SalesTable>[0]["rows"];
+}) {
+  return (
+    <>
+      {rows.map((r) => (
+        <ReportCard key={r.receiptNumber}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-bold text-primary-dark">
+              {r.receiptNumber}
+            </span>
+            <span className="font-extrabold text-success">
+              {formatBaht(r.totalAmount)}
+            </span>
+          </div>
+          <dl className="mt-3 space-y-1.5 text-sm">
+            <CardLine label="วัน/เวลา">
+              {formatDateTime(r.createdAt)}
+            </CardLine>
+            <CardLine label="รายการ">
+              {describeSale(r) || "—"}
+            </CardLine>
+            <CardLine label="ชำระ">
+              <MethodBadge method={r.paymentMethod} />
+            </CardLine>
+          </dl>
+        </ReportCard>
+      ))}
     </>
   );
 }
@@ -517,6 +610,45 @@ function RedeemTable({
   );
 }
 
+// ---- การ์ดไถ่ถอน (mobile) ----
+function RedeemCards({
+  rows,
+}: {
+  rows: Parameters<typeof RedeemTable>[0]["rows"];
+}) {
+  return (
+    <>
+      {rows.map((r) => (
+        <ReportCard key={r.id}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-bold text-primary-dark">
+              {r.contract.contractNumber}
+            </span>
+            <span className="font-extrabold text-zinc-800">
+              {formatBaht(r.total)}
+            </span>
+          </div>
+          <dl className="mt-3 space-y-1.5 text-sm">
+            <CardLine label="วัน/เวลา">
+              {formatDateTime(r.createdAt)}
+            </CardLine>
+            <CardLine label="รายการ">
+              <span className="block">{r.contract.itemName}</span>
+              <span className="block text-xs text-zinc-400">
+                เงินต้น {formatBaht(r.principal)}
+                {r.interest > 0 && <> · ดอกเบี้ย {formatBaht(r.interest)}</>}
+              </span>
+            </CardLine>
+            <CardLine label="ชำระ">
+              <MethodBadge method={r.paymentMethod} />
+            </CardLine>
+          </dl>
+        </ReportCard>
+      ))}
+    </>
+  );
+}
+
 // ---- ตารางรายจ่าย ----
 function ExpenseTable({
   rows,
@@ -553,6 +685,86 @@ function ExpenseTable({
             −{formatBaht(r.amount)}
           </td>
         </tr>
+      ))}
+    </>
+  );
+}
+
+// ---- การ์ดรายจ่าย (mobile) ----
+function ExpenseCards({
+  rows,
+}: {
+  rows: Parameters<typeof ExpenseTable>[0]["rows"];
+}) {
+  return (
+    <>
+      {rows.map((r) => (
+        <ReportCard key={r.id}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-bold text-primary-dark">
+              {r.contract?.contractNumber ??
+                EXPENSE_CATEGORY_LABEL[r.category] ??
+                r.category}
+            </span>
+            <span className="font-extrabold text-error">
+              −{formatBaht(r.amount)}
+            </span>
+          </div>
+          <dl className="mt-3 space-y-1.5 text-sm">
+            <CardLine label="วัน/เวลา">
+              {formatDateTime(r.createdAt)}
+            </CardLine>
+            <CardLine label="รายการ">
+              <span className="block">{r.contract?.itemName ?? r.description}</span>
+              <span className="block text-xs text-zinc-400">
+                {r.description}
+              </span>
+            </CardLine>
+            <CardLine label="ประเภท">
+              <Badge tone="red" className="whitespace-nowrap">
+                รายจ่าย
+              </Badge>
+            </CardLine>
+          </dl>
+        </ReportCard>
+      ))}
+    </>
+  );
+}
+
+// ---- การ์ดต่อดอกเบี้ย (mobile) ----
+function RenewCards({
+  rows,
+}: {
+  rows: Parameters<typeof RenewTable>[0]["rows"];
+}) {
+  return (
+    <>
+      {rows.map((r) => (
+        <ReportCard key={r.id}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-bold text-primary-dark">
+              {r.contract.contractNumber}
+            </span>
+            <span className="font-extrabold text-accent-dark">
+              {formatBaht(r.interestAmount)}
+            </span>
+          </div>
+          <dl className="mt-3 space-y-1.5 text-sm">
+            <CardLine label="วัน/เวลา">
+              {formatDateTime(r.createdAt)}
+            </CardLine>
+            <CardLine label="รายการ">
+              <span className="block">{r.contract.itemName}</span>
+              <span className="block text-xs text-zinc-400">
+                ต่อดอกเบี้ยครั้งที่ {r.roundNumber}
+              </span>
+            </CardLine>
+            <CardLine label="ชำระ">
+              <MethodBadge method={r.paymentMethod} />
+            </CardLine>
+          </dl>
+        </ReportCard>
       ))}
     </>
   );
