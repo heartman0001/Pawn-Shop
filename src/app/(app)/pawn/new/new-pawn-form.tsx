@@ -88,7 +88,7 @@ const pawnFormSchema = z.object({
   interestRatePercent: z
     .string()
     .regex(/^\d+(\.\d+)?$/, "ดอกเบี้ยต้องเป็นตัวเลข")
-    .default("2"),
+    .default("10"),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "รูปแบบวันที่ไม่ถูกต้อง"),
 });
 
@@ -114,7 +114,7 @@ const emptyForm: PawnFormValues = {
   serialNumber: "",
   storageBox: "",
   principalAmount: "",
-  interestRatePercent: "2",
+  interestRatePercent: "10",
   startDate: todayStr(),
 };
 
