@@ -85,7 +85,7 @@ export function PawnContractsClient({
       {/* filter + search — mobile: burger dropdown; desktop: inline chips */}
       <div className="relative">
         {/* Mobile: hamburger button */}
-        <div className="sm:hidden">
+        <div className="sm:hidden flex">
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
@@ -94,7 +94,15 @@ export function PawnContractsClient({
           >
             <Filter className="h-5 w-5" />
           </button>
-
+          <div className="relative ml-auto w-full min-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ค้นหาสัญญา / ชื่อลูกค้า / สิ่งของ…"
+              className="pl-9"
+            />
+          </div>
           {/* Dropdown menu */}
           {mobileMenuOpen && (
             <div className="absolute right-0 top-12 z-50 w-56 rounded-xl border-2 border-primary/10 bg-surface-card p-3 shadow-card">
