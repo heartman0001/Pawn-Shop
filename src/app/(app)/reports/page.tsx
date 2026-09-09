@@ -13,6 +13,7 @@ import {
 import type { PaymentMethod } from "@prisma/client";
 import { Badge, Button, Card, Input } from "@/components/ui";
 import { cn } from "@/components/ui";
+import { SaleItemsAccordion, type SaleItemRow } from "./sale-items-accordion";
 
 export const metadata = { title: "รายงานรายรับ — ร้านรับจำนำ POS" };
 
@@ -71,6 +72,8 @@ export default async function ReportsPage({
             pawnContractId: true,
             quantity: true,
             unitPrice: true,
+            product: { select: { name: true } },
+            pawnContract: { select: { itemName: true } },
           },
         },
       },
@@ -503,7 +506,7 @@ function SalesTable({
     createdAt: Date;
     paymentMethod: PaymentMethod;
     totalAmount: number;
-    items: { productId: string | null; pawnContractId: string | null; quantity: number; unitPrice: number }[];
+    items: SaleItemRow[];
   }[];
 }) {
   return (
@@ -518,7 +521,10 @@ function SalesTable({
             <td className="px-4 py-2.5 font-bold text-zinc-800">
               {r.receiptNumber}
             </td>
-            <td className="px-4 py-2.5 text-zinc-600">{desc || "—"}</td>
+            <td className="px-4 py-2.5 text-zinc-600">
+              {desc || "—"}
+              <SaleItemsAccordion sale={r} />
+            </td>
             <td className="px-4 py-2.5">
               <MethodBadge method={r.paymentMethod} />
             </td>
@@ -561,6 +567,9 @@ function SalesCards({
               <MethodBadge method={r.paymentMethod} />
             </CardLine>
           </dl>
+          <div className="mt-2">
+            <SaleItemsAccordion sale={r} />
+          </div>
         </ReportCard>
       ))}
     </>

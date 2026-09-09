@@ -351,7 +351,7 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
 
         {/* ชำระเงิน */}
         <div className="border-t-2 border-dashed border-primary/15 bg-cream px-4 py-3">
-          <div className="mb-2 grid grid-cols-4 gap-1">
+          {/* <div className="mb-2 grid grid-cols-4 gap-1">
             {PAYMENT_METHODS.map((m) => {
               const Icon = paymentIcons[m];
               return (
@@ -409,7 +409,7 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
                 </span>
               </div>
             </div>
-          )}
+          )} */}
 
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-zinc-500">รวมทั้งสิ้น</span>

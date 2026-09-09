@@ -11,11 +11,13 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/prisma";
 import {
   formatBaht,
+  formatDateOnly,
   formatDateTime,
   PAWN_STATUS_LABEL,
   PAWN_STATUS_TONE,
 } from "@/lib/format";
 import { Badge, Button, Card } from "@/components/ui";
+import { cn } from "@/components/ui";
 
 // ต้องรันแบบ dynamic เสมอ (เช็ค session ตอน request ไม่ใช่ตอน build)
 export const dynamic = "force-dynamic";
@@ -73,7 +75,7 @@ export default async function DashboardPage() {
             แดชบอร์ด
           </h1>
           <p className="text-sm font-medium text-zinc-500">
-            ภาพรวมร้านวันนี้ — {formatDateTime(now)}
+            ภาพรวมร้านวันนี้ — {formatDateOnly(now)}
           </p>
         </div>
         <div className="flex gap-2">
@@ -138,70 +140,148 @@ export default async function DashboardPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* สัญญาล่าสุด */}
-        <Card>
-          <SectionTitle href="/pawns" title="สัญญาจำนำล่าสุด" />
-          <ul className="divide-y divide-zinc-100">
-            {recentContracts.length === 0 && (
-              <li className="px-5 py-8 text-center text-sm text-zinc-400">
+        {/* ===== สัญญาจำนำล่าสุด ===== */}
+        <RecentSection
+          title="สัญญาจำนำล่าสุด"
+          href="/pawns"
+          headers={["เลขที่สัญญา", "ลูกค้า", "สิ่งที่จำนำ", "ครบกำหนด", "สถานะ"]}
+          mobile={
+            recentContracts.length === 0 ? (
+              <EmptyCard text="ยังไม่มีสัญญาจำนำ — กด “+ รับจำนำใหม่” เพื่อเริ่ม" />
+            ) : (
+              <>
+                {recentContracts.map((c) => (
+                  <ReportCard key={c.id}>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-primary-dark">
+                        {c.contractNumber}
+                      </span>
+                      <Badge tone={PAWN_STATUS_TONE[c.status]}>
+                        {PAWN_STATUS_LABEL[c.status]}
+                      </Badge>
+                    </div>
+                    <dl className="mt-3 space-y-1.5 text-sm">
+                      <CardLine label="สิ่งที่จำนำ">
+                        <span className="block truncate">{c.itemName}</span>
+                      </CardLine>
+                      <CardLine label="ลูกค้า">{c.customer.fullName}</CardLine>
+                      <CardLine label="เงินต้น">
+                        {formatBaht(c.principalAmount)}
+                      </CardLine>
+                      <CardLine label="ครบกำหนด">
+                        {formatDateTime(c.dueDate)}
+                      </CardLine>
+                    </dl>
+                  </ReportCard>
+                ))}
+              </>
+            )
+          }
+        >
+          {recentContracts.length === 0 ? (
+            <tr>
+              <td
+                colSpan={5}
+                className="px-4 py-8 text-center text-sm text-zinc-400"
+              >
                 ยังไม่มีสัญญาจำนำ — กด “+ รับจำนำใหม่” เพื่อเริ่ม
-              </li>
-            )}
-            {recentContracts.map((c) => (
-              <li
-                key={c.id}
-                className="flex items-center justify-between gap-3 px-5 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {c.itemName}{" "}
-                    <span className="font-normal text-zinc-400">
-                      ({c.customer.fullName})
-                    </span>
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {c.contractNumber} · ครบกำหนด {formatDateTime(c.dueDate)}
-                  </p>
-                </div>
-                <Badge tone={PAWN_STATUS_TONE[c.status]}>
-                  {PAWN_STATUS_LABEL[c.status]}
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        </Card>
+              </td>
+            </tr>
+          ) : (
+            recentContracts.map((c) => (
+              <tr key={c.id} className="hover:bg-primary/5">
+                <td className="whitespace-nowrap px-4 py-2.5 font-bold text-zinc-800">
+                  {c.contractNumber}
+                </td>
+                <td className="px-4 py-2.5 text-zinc-600">
+                  {c.customer.fullName}
+                </td>
+                <td className="max-w-[220px] truncate px-4 py-2.5 text-zinc-600">
+                  {c.itemName}
+                </td>
+                <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
+                  {formatDateTime(c.dueDate)}
+                </td>
+                <td className="px-4 py-2.5 text-right">
+                  <Badge tone={PAWN_STATUS_TONE[c.status]}>
+                    {PAWN_STATUS_LABEL[c.status]}
+                  </Badge>
+                </td>
+              </tr>
+            ))
+          )}
+        </RecentSection>
 
-        {/* ขายล่าสุด */}
-        <Card>
-          <SectionTitle href="/pos" title="บิลขายล่าสุด" />
-          <ul className="divide-y divide-zinc-100">
-            {recentSales.length === 0 && (
-              <li className="px-5 py-8 text-center text-sm text-zinc-400">
-                ยังไม่มีรายการขายวันนี้
-              </li>
-            )}
-            {recentSales.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between gap-3 px-5 py-3"
+        {/* ===== บิลขายล่าสุด ===== */}
+        <RecentSection
+          title="บิลขายล่าสุด"
+          href="/pos"
+          headers={["เลขที่บิล", "วัน/เวลา", "รายการ", "ยอดรวม"]}
+          mobile={
+            recentSales.length === 0 ? (
+              <EmptyCard text="ยังไม่มีรายการขายวันนี้" />
+            ) : (
+              <>
+                {recentSales.map((s) => (
+                  <ReportCard key={s.id}>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-bold text-primary-dark">
+                        {s.receiptNumber}
+                      </span>
+                      <span className="font-extrabold text-success">
+                        {formatBaht(s.totalAmount)}
+                      </span>
+                    </div>
+                    <dl className="mt-3 space-y-1.5 text-sm">
+                      <CardLine label="วัน/เวลา">
+                        {formatDateTime(s.createdAt)}
+                      </CardLine>
+                      <CardLine label="รายการ">
+                        {describeSale(s) || "—"}
+                      </CardLine>
+                    </dl>
+                  </ReportCard>
+                ))}
+              </>
+            )
+          }
+        >
+          {recentSales.length === 0 ? (
+            <tr>
+              <td
+                colSpan={4}
+                className="px-4 py-8 text-center text-sm text-zinc-400"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{s.receiptNumber}</p>
-                  <p className="text-xs text-zinc-500">
-                    {formatDateTime(s.createdAt)} · {s.items.length} รายการ
-                  </p>
-                </div>
-                <span className="text-sm font-bold text-success">
+                ยังไม่มีรายการขายวันนี้
+              </td>
+            </tr>
+          ) : (
+            recentSales.map((s) => (
+              <tr key={s.id} className="hover:bg-primary/5">
+                <td className="whitespace-nowrap px-4 py-2.5 font-bold text-zinc-800">
+                  {s.receiptNumber}
+                </td>
+                <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
+                  {formatDateTime(s.createdAt)}
+                </td>
+                <td className="px-4 py-2.5 text-zinc-600">
+                  {describeSale(s) || "—"}
+                </td>
+                <td className="whitespace-nowrap px-4 py-2.5 text-right font-extrabold text-success">
                   {formatBaht(s.totalAmount)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
+                </td>
+              </tr>
+            ))
+          )}
+        </RecentSection>
       </div>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// ส่วนประกอบย่อย
+// ---------------------------------------------------------------------------
 
 function StatCard({
   icon,
@@ -242,18 +322,106 @@ function StatCard({
   );
 }
 
-function SectionTitle({ title, href }: { title: string; href: string }) {
+function RecentSection({
+  title,
+  href,
+  headers,
+  mobile,
+  children,
+}: {
+  title: string;
+  href: string;
+  headers: string[];
+  mobile?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center justify-between border-b-2 border-dashed border-primary/25 px-5 py-3.5">
-      <h2 className="text-sm font-extrabold uppercase tracking-wide text-primary-dark">
-        {title}
-      </h2>
-      <Link
-        href={href}
-        className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/10"
-      >
-        ดูทั้งหมด <ArrowRight className="h-3 w-3" />
-      </Link>
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b-2 border-dashed border-primary/25 px-5 py-3.5">
+        <h2 className="text-sm font-extrabold uppercase tracking-wide text-primary-dark">
+          {title}
+        </h2>
+        <Link
+          href={href}
+          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/10"
+        >
+          ดูทั้งหมด <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="w-full min-w-[520px] text-sm">
+          <thead>
+            <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
+              {headers.map((h, i) => (
+                <th
+                  key={h}
+                  className={cn(
+                    "px-4 py-2.5 font-medium",
+                    i === headers.length - 1 && "text-right"
+                  )}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">{children}</tbody>
+        </table>
+      </div>
+
+      {/* Mobile: card stack */}
+      {mobile && <div className="space-y-3 p-3 sm:hidden">{mobile}</div>}
+    </Card>
+  );
+}
+
+function ReportCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card">
+      {children}
     </div>
   );
+}
+
+function CardLine({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="shrink-0 text-zinc-400">{label}</dt>
+      <dd className="text-right text-zinc-700">{children}</dd>
+    </div>
+  );
+}
+
+function EmptyCard({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
+      {text}
+    </div>
+  );
+}
+
+// สรุปจำนวนชิ้นในบิล: สินค้าทั่วไป vs ของหลุดจำนำ
+function describeSale(r: {
+  items: { productId: string | null; quantity: number }[];
+}): string {
+  let retailQty = 0;
+  let pawnQty = 0;
+  for (const it of r.items) {
+    if (it.productId) retailQty += it.quantity;
+    else pawnQty += it.quantity;
+  }
+  return [
+    retailQty > 0 ? `สินค้าทั่วไป ${retailQty} ชิ้น` : "",
+    pawnQty > 0 ? `ของหลุดจำนำ ${pawnQty} ชิ้น` : "",
+  ]
+    .filter(Boolean)
+    .join(" + ");
 }

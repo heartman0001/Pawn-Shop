@@ -26,6 +26,10 @@ export function formatDateTime(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d;
   return `${formatDate(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+export function formatDateOnly(d: Date | string): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  return formatDate(date);
+}
 
 export const PAWN_STATUS_LABEL: Record<PawnStatus, string> = {
   ACTIVE: "จำนำอยู่",
