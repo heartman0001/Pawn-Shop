@@ -13,9 +13,8 @@ import {
 import { db } from "@/lib/prisma";
 import {
   addDays,
-  calcOverdueInterest,
+  calcRedemption,
   calcPeriodInterest,
-  calcOverdueRounds,
   parseDateOnly,
   PAWN_TERM_DAYS,
 } from "@/lib/pawn-math";
@@ -316,15 +315,20 @@ export async function redeemContract(
   }
 
   // คำนวณยอดที่ต้องชำระ (คำนวณฝั่ง Server เป็นหลัก)
+  // Fixed Cycle: คิดงวดจากวันเริ่มสัญญา นับงวดแรกเสมอ (ไถ่วันที่ 1-10 = 1 งวด)
+  // งวดที่จ่ายไปแล้วตอนต่อดอก (renewalCount) หักออกเพื่อไม่เก็บซ้ำ
   const now = new Date();
-  const rounds = calcOverdueRounds(contract.dueDate, now);
-  const interestDue = calcOverdueInterest(
-    contract.principalAmount,
-    contract.interestRatePercent,
-    contract.dueDate,
-    now
-  );
-  const totalAmount = contract.principalAmount + interestDue;
+  const calc = calcRedemption({
+    principal: contract.principalAmount,
+    interestRatePercent: contract.interestRatePercent,
+    cycleDays: PAWN_TERM_DAYS,
+    startDate: contract.startDate,
+    redemptionDate: now,
+    paidCycles: contract.renewalCount,
+  });
+  const rounds = calc.totalCycles; // งวดทั้งหมดตามอายุสัญญา
+  const interestDue = calc.totalInterest;
+  const totalAmount = calc.totalAmount;
 
   let changeAmount = 0;
   let received: number | null = null;

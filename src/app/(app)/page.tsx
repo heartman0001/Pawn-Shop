@@ -1,6 +1,8 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   HandCoins,
   PackageOpen,
   Store,
@@ -22,43 +24,90 @@ import { cn } from "@/components/ui";
 // ต้องรันแบบ dynamic เสมอ (เช็ค session ตอน request ไม่ใช่ตอน build)
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+const PAGE_SIZE = 5;
+
+type DashboardSearchParams = { cp?: string; sp?: string };
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<DashboardSearchParams>;
+}) {
   await requireAuth();
+
+  const sp = await searchParams;
+  const parsePage = (v?: string) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n > 0 ? n : 1;
+  };
+  const contractPage = parsePage(sp.cp);
+  const salePage = parsePage(sp.sp);
+  // ลิงก์เปลี่ยนหน้า: คงค่าหน้าของอีกตารางไว้
+  const contractHref = (page: number) => {
+    const q = new URLSearchParams();
+    if (page > 1) q.set("cp", String(page));
+    if (salePage > 1) q.set("sp", String(salePage));
+    const qs = q.toString();
+    return qs ? `/?${qs}` : "/";
+  };
+  const saleHref = (page: number) => {
+    const q = new URLSearchParams();
+    if (contractPage > 1) q.set("cp", String(contractPage));
+    if (page > 1) q.set("sp", String(page));
+    const qs = q.toString();
+    return qs ? `/?${qs}` : "/";
+  };
 
   const now = new Date();
   const soon = new Date(now);
   soon.setDate(soon.getDate() + 7);
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const [activePawns, dueSoon, todayRevenue, totalStock, allProducts, recentContracts, recentSales] =
-    await Promise.all([
-      db.pawnContract.count({ where: { status: "ACTIVE" } }),
-      db.pawnContract.count({
-        where: { status: "ACTIVE", dueDate: { lte: soon } },
-      }),
-      db.saleOrder.aggregate({
-        where: { createdAt: { gte: dayStart } },
-        _sum: { totalAmount: true },
-      }),
-      db.retailProduct.aggregate({
-        where: { archived: false },
-        _sum: { quantity: true },
-      }),
-      db.retailProduct.findMany({
-        where: { archived: false },
-        orderBy: { quantity: "asc" },
-      }),
-      db.pawnContract.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: { customer: true },
-      }),
-      db.saleOrder.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: { items: true },
-      }),
-    ]);
+  const [
+    activePawns,
+    dueSoon,
+    todayRevenue,
+    totalStock,
+    allProducts,
+    totalContracts,
+    totalSales,
+    recentContracts,
+    recentSales,
+  ] = await Promise.all([
+    db.pawnContract.count({ where: { status: "ACTIVE" } }),
+    db.pawnContract.count({
+      where: { status: "ACTIVE", dueDate: { lte: soon } },
+    }),
+    db.saleOrder.aggregate({
+      where: { createdAt: { gte: dayStart } },
+      _sum: { totalAmount: true },
+    }),
+    db.retailProduct.aggregate({
+      where: { archived: false },
+      _sum: { quantity: true },
+    }),
+    db.retailProduct.findMany({
+      where: { archived: false },
+      orderBy: { quantity: "asc" },
+    }),
+    db.pawnContract.count(),
+    db.saleOrder.count(),
+    db.pawnContract.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (contractPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: { customer: true },
+    }),
+    db.saleOrder.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (salePage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: { items: true },
+    }),
+  ]);
+
+  const contractPages = Math.max(1, Math.ceil(totalContracts / PAGE_SIZE));
+  const salePages = Math.max(1, Math.ceil(totalSales / PAGE_SIZE));
 
   const lowStock = allProducts
     .filter((p) => p.quantity <= p.minQuantity)
@@ -145,6 +194,9 @@ export default async function DashboardPage() {
           title="สัญญาจำนำล่าสุด"
           href="/pawns"
           headers={["เลขที่สัญญา", "ลูกค้า", "สิ่งที่จำนำ", "ครบกำหนด", "สถานะ"]}
+          page={contractPage}
+          totalPages={contractPages}
+          pageHref={contractHref}
           mobile={
             recentContracts.length === 0 ? (
               <EmptyCard text="ยังไม่มีสัญญาจำนำ — กด “+ รับจำนำใหม่” เพื่อเริ่ม" />
@@ -200,7 +252,7 @@ export default async function DashboardPage() {
                   {c.itemName}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
-                  {formatDateTime(c.dueDate)}
+                  {formatDateOnly(c.dueDate)}
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <Badge tone={PAWN_STATUS_TONE[c.status]}>
@@ -217,6 +269,9 @@ export default async function DashboardPage() {
           title="บิลขายล่าสุด"
           href="/pos"
           headers={["เลขที่บิล", "วัน/เวลา", "รายการ", "ยอดรวม"]}
+          page={salePage}
+          totalPages={salePages}
+          pageHref={saleHref}
           mobile={
             recentSales.length === 0 ? (
               <EmptyCard text="ยังไม่มีรายการขายวันนี้" />
@@ -326,12 +381,18 @@ function RecentSection({
   title,
   href,
   headers,
+  page,
+  totalPages,
+  pageHref,
   mobile,
   children,
 }: {
   title: string;
   href: string;
   headers: string[];
+  page: number;
+  totalPages: number;
+  pageHref: (page: number) => string;
   mobile?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -373,7 +434,48 @@ function RecentSection({
 
       {/* Mobile: card stack */}
       {mobile && <div className="space-y-3 p-3 sm:hidden">{mobile}</div>}
+
+      <Pagination page={page} totalPages={totalPages} pageHref={pageHref} />
     </Card>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  pageHref,
+}: {
+  page: number;
+  totalPages: number;
+  pageHref: (page: number) => string;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-primary/25 px-5 py-3">
+      <Link
+        href={pageHref(Math.max(page - 1, 1))}
+        aria-disabled={page <= 1}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          page <= 1 && "pointer-events-none opacity-40"
+        )}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Link>
+      <span className="text-xs font-bold text-zinc-500">
+        หน้า {page} / {totalPages}
+      </span>
+      <Link
+        href={pageHref(Math.min(page + 1, totalPages))}
+        aria-disabled={page >= totalPages}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          page >= totalPages && "pointer-events-none opacity-40"
+        )}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Link>
+    </div>
   );
 }
 

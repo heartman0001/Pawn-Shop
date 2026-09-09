@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- รูปสิ่งของที่แนบตอนรับจำนำ */
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarClock,
@@ -28,7 +28,7 @@ import {
   PAYMENT_METHOD_LABEL,
 } from "@/lib/format";
 import {
-  calcOverdueRounds,
+  calcRedemption,
   calcPeriodInterest,
   PAWN_TERM_DAYS,
 } from "@/lib/pawn-math";
@@ -85,7 +85,7 @@ export function PawnContractsClient({
       {/* filter + search — mobile: burger dropdown; desktop: inline chips */}
       <div className="relative">
         {/* Mobile: hamburger button */}
-        <div className="sm:hidden flex">
+        <div className="sm:hidden flex px-3">
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
@@ -160,32 +160,28 @@ export function PawnContractsClient({
         </div>
       </div>
 
-      {/* รายการสัญญา — mobile: card stack / desktop: table rows */}
-      <div className="space-y-3 p-3 md:space-y-0 md:p-0 md:overflow-hidden md:rounded-2xl md:border-2 md:border-primary/10 md:bg-surface-card md:shadow-card">
-        {filtered.length === 0 && (
-          <p className="py-16 text-center text-sm text-zinc-400">
-            ไม่พบสัญญาในเงื่อนไขนี้
-          </p>
-        )}
-        <ul className="md:divide-y md:divide-zinc-100">
+      {/* รายการสัญญา — mobile: card stack / desktop: table card */}
+      <div className="md:overflow-hidden md:rounded-2xl md:border-2 md:border-primary/10 md:bg-surface-card md:shadow-card">
+        {/* Mobile: card stack */}
+        <div className="space-y-3 p-3 md:hidden">
+          {filtered.length === 0 && (
+            <p className="py-12 text-center text-sm text-zinc-400">
+              ไม่พบสัญญาในเงื่อนไขนี้
+            </p>
+          )}
           {filtered.map((c) => {
             const overdue = isOverdue(c);
             const rowKey =
               expanded?.split(":")[0] === c.id ? expanded : null;
             return (
-              <li
+              <div
                 key={c.id}
-                className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card md:overflow-visible md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none"
+                className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
               >
-                {/* แถวหลัก */}
                 <div
                   className={cn(
-                    "grid cursor-pointer grid-cols-1 items-center gap-2 p-0 transition-colors hover:bg-primary/5 md:grid-cols-[auto_1fr_auto] md:px-4 md:py-3",
-                    expanded === `${c.id}:renew` ||
-                      expanded === `${c.id}:forfeit` ||
-                      expanded === `${c.id}:redeem`
-                      ? "bg-cream"
-                      : ""
+                    "cursor-pointer rounded-xl p-1 transition-colors hover:bg-primary/5",
+                    rowKey ? "bg-cream" : ""
                   )}
                   onClick={() => {
                     if (rowKey) setExpanded(null);
@@ -193,54 +189,16 @@ export function PawnContractsClient({
                       setExpanded(`${c.id}:renew`);
                   }}
                 >
-                  <div className="flex items-center gap-2">
-                    {c.status === "ACTIVE" ? (
-                      rowKey ? (
-                        <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
-                      )
-                    ) : (
-                      <span className="w-4 shrink-0" />
-                    )}
-                    {c.image && (
-                      <img
-                        src={c.image}
-                        alt={c.itemName}
-                        className="h-10 w-10 shrink-0 rounded-lg border border-primary/15 object-cover"
-                      />
-                    )}
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">
-                        {c.itemName}
-                      </p>
-                      <p className="text-xs text-zinc-400">
-                        {c.contractNumber} · {c.customerName}
-                        {c.customerPhone ? ` · ${c.customerPhone}` : ""}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="ml-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 md:ml-0">
-                    <span>
-                      เงินต้น{" "}
-                      <b className="text-zinc-800">
-                        {formatBaht(c.principalAmount)}
-                      </b>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex items-center gap-1.5 font-bold text-primary-dark">
+                      {c.status === "ACTIVE" &&
+                        (rowKey ? (
+                          <ChevronDown className="h-4 w-4 text-primary" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-zinc-300" />
+                        ))}
+                      {c.contractNumber}
                     </span>
-                    <span className="inline-flex items-center gap-1">
-                      <CalendarClock className="h-3.5 w-3.5" />
-                      ครบกำหนด {formatDate(c.dueDate)}
-                      {overdue && (
-                        <Badge tone="coral">เลยกำหนด</Badge>
-                      )}
-                    </span>
-                    <span>
-                      ต่อดอก {c.renewalCount} ครั้ง
-                    </span>
-                  </div>
-
-                  <div className="ml-6 flex items-center justify-between gap-3 md:ml-0 md:justify-end">
                     <Badge
                       tone={
                         c.status === "ACTIVE" && overdue
@@ -250,48 +208,73 @@ export function PawnContractsClient({
                     >
                       {PAWN_STATUS_LABEL[c.status]}
                     </Badge>
-                    {c.status === "ACTIVE" && (
-                      <div
-                        className="flex flex-wrap justify-end gap-1.5"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <ActionButton
-                          label="ต่อดอกเบี้ย"
-                          tone="primary"
-                          onClick={() =>
-                            setExpanded(
-                              rowKey === `${c.id}:renew`
-                                ? null
-                                : `${c.id}:renew`
-                            )
-                          }
-                        />
-                        <ActionButton
-                          label="ไถ่ถอน"
-                          tone="success"
-                          onClick={() =>
-                            setExpanded(
-                              rowKey === `${c.id}:redeem`
-                                ? null
-                                : `${c.id}:redeem`
-                            )
-                          }
-                        />
-                        <ActionButton
-                          label="ตัดหลุด"
-                          tone="danger"
-                          onClick={() =>
-                            setExpanded(
-                              rowKey === `${c.id}:forfeit`
-                                ? null
-                                : `${c.id}:forfeit`
-                            )
-                          }
-                        />
-                      </div>
-                    )}
                   </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    {c.image && (
+                      <img
+                        src={c.image}
+                        alt={c.itemName}
+                        className="h-10 w-10 shrink-0 rounded-lg border border-primary/15 object-cover"
+                      />
+                    )}
+                    <p className="min-w-0 truncate text-sm font-semibold">
+                      {c.itemName}
+                    </p>
+                  </div>
+                  <dl className="mt-3 space-y-1.5 text-sm">
+                    <CardLine label="ลูกค้า">
+                      {c.customerName}
+                      {c.customerPhone ? ` · ${c.customerPhone}` : ""}
+                    </CardLine>
+                    <CardLine label="เงินต้น">
+                      <b className="text-zinc-800">
+                        {formatBaht(c.principalAmount)}
+                      </b>
+                    </CardLine>
+                    <CardLine label="ครบกำหนด">
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        {formatDate(c.dueDate)}
+                        {overdue && <Badge tone="coral">เลยกำหนด</Badge>}
+                      </span>
+                    </CardLine>
+                    <CardLine label="ต่อดอก">{c.renewalCount} ครั้ง</CardLine>
+                  </dl>
                 </div>
+
+                {c.status === "ACTIVE" && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <ActionButton
+                      label="ต่อดอกเบี้ย"
+                      tone="primary"
+                      onClick={() =>
+                        setExpanded(
+                          rowKey === `${c.id}:renew` ? null : `${c.id}:renew`
+                        )
+                      }
+                    />
+                    <ActionButton
+                      label="ไถ่ถอน"
+                      tone="success"
+                      onClick={() =>
+                        setExpanded(
+                          rowKey === `${c.id}:redeem` ? null : `${c.id}:redeem`
+                        )
+                      }
+                    />
+                    <ActionButton
+                      label="ตัดหลุด"
+                      tone="danger"
+                      onClick={() =>
+                        setExpanded(
+                          rowKey === `${c.id}:forfeit`
+                            ? null
+                            : `${c.id}:forfeit`
+                        )
+                      }
+                    />
+                  </div>
+                )}
 
                 {/* แถวขยาย: action forms */}
                 {rowKey === `${c.id}:renew` && (
@@ -324,10 +307,201 @@ export function PawnContractsClient({
                     }}
                   />
                 )}
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
+
+        {/* Desktop: table card */}
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[880px] text-sm">
+            <thead>
+              <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
+                <th className="px-4 py-2.5 font-medium">สัญญา</th>
+                <th className="px-4 py-2.5 font-medium">สิ่งที่จำนำ</th>
+                <th className="px-4 py-2.5 text-right font-medium">เงินต้น</th>
+                <th className="px-4 py-2.5 font-medium">ครบกำหนด</th>
+                <th className="px-4 py-2.5 text-center font-medium">ต่อดอก</th>
+                <th className="px-4 py-2.5 font-medium">สถานะ</th>
+                <th className="px-4 py-2.5 text-right font-medium">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {filtered.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-12 text-center text-sm text-zinc-400"
+                  >
+                    ไม่พบสัญญาในเงื่อนไขนี้
+                  </td>
+                </tr>
+              )}
+              {filtered.map((c) => {
+                const overdue = isOverdue(c);
+                const rowKey =
+                  expanded?.split(":")[0] === c.id ? expanded : null;
+                const isOpen = rowKey !== null;
+                return (
+                  <Fragment key={c.id}>
+                    <tr
+                      className={cn(
+                        "cursor-pointer transition-colors hover:bg-primary/5",
+                        isOpen ? "bg-cream" : ""
+                      )}
+                      onClick={() => {
+                        if (isOpen) setExpanded(null);
+                        else if (c.status === "ACTIVE")
+                          setExpanded(`${c.id}:renew`);
+                      }}
+                    >
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          {c.status === "ACTIVE" ? (
+                            isOpen ? (
+                              <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
+                            )
+                          ) : (
+                            <span className="w-4 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-bold text-zinc-800">
+                              {c.contractNumber}
+                            </p>
+                            <p className="text-xs text-zinc-400">
+                              {c.customerName}
+                              {c.customerPhone ? ` · ${c.customerPhone}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          {c.image && (
+                            <img
+                              src={c.image}
+                              alt={c.itemName}
+                              className="h-10 w-10 shrink-0 rounded-lg border border-primary/15 object-cover"
+                            />
+                          )}
+                          <p className="max-w-[220px] truncate text-zinc-700">
+                            {c.itemName}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right font-bold text-zinc-800">
+                        {formatBaht(c.principalAmount)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarClock className="h-3.5 w-3.5" />
+                          {formatDate(c.dueDate)}
+                          {overdue && <Badge tone="coral">เลยกำหนด</Badge>}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-center text-zinc-500">
+                        {c.renewalCount} ครั้ง
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Badge
+                          tone={
+                            c.status === "ACTIVE" && overdue
+                              ? "coral"
+                              : PAWN_STATUS_TONE[c.status]
+                          }
+                        >
+                          {PAWN_STATUS_LABEL[c.status]}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        {c.status === "ACTIVE" && (
+                          <div
+                            className="flex flex-wrap justify-end gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ActionButton
+                              label="ต่อดอกเบี้ย"
+                              tone="primary"
+                              onClick={() =>
+                                setExpanded(
+                                  rowKey === `${c.id}:renew`
+                                    ? null
+                                    : `${c.id}:renew`
+                                )
+                              }
+                            />
+                            <ActionButton
+                              label="ไถ่ถอน"
+                              tone="success"
+                              onClick={() =>
+                                setExpanded(
+                                  rowKey === `${c.id}:redeem`
+                                    ? null
+                                    : `${c.id}:redeem`
+                                )
+                              }
+                            />
+                            <ActionButton
+                              label="ตัดหลุด"
+                              tone="danger"
+                              onClick={() =>
+                                setExpanded(
+                                  rowKey === `${c.id}:forfeit`
+                                    ? null
+                                    : `${c.id}:forfeit`
+                                )
+                              }
+                            />
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* แถวขยาย: action forms */}
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={7} className="p-0">
+                          {rowKey === `${c.id}:renew` && (
+                            <RenewForm
+                              contract={c}
+                              onDone={(msg) => {
+                                setExpanded(null);
+                                showToast(msg);
+                                router.refresh();
+                              }}
+                            />
+                          )}
+                          {rowKey === `${c.id}:forfeit` && (
+                            <ForfeitForm
+                              contract={c}
+                              onDone={(msg) => {
+                                setExpanded(null);
+                                showToast(msg);
+                                router.refresh();
+                              }}
+                            />
+                          )}
+                          {rowKey === `${c.id}:redeem` && (
+                            <RedeemForm
+                              contract={c}
+                              onDone={(msg) => {
+                                setExpanded(null);
+                                showToast(msg);
+                                router.refresh();
+                              }}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* toast */}
@@ -409,7 +583,7 @@ function RenewForm({
   }
 
   return (
-    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-primary/20 bg-primary-bg px-4 py-4 md:mx-0 md:mb-0 md:mt-0 md:px-6">
+    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-primary/20 bg-primary-bg px-4 py-4 sm:mx-0 sm:mb-0 sm:mt-0 sm:px-6">
       <div className="flex flex-wrap items-end gap-4">
         <div className="text-sm">
           <p className="text-xs font-bold uppercase tracking-wide text-primary/60">
@@ -487,7 +661,7 @@ function ForfeitForm({
   }
 
   return (
-    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-coral/30 bg-coral/5 px-4 py-4 md:mx-0 md:mb-0 md:mt-0 md:px-6">
+    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-coral/30 bg-coral/5 px-4 py-4 sm:mx-0 sm:mb-0 sm:mt-0 sm:px-6">
       <div className="flex flex-wrap items-end gap-3">
         <div className="max-w-sm text-sm text-zinc-600">
           <p className="font-extrabold text-coral-dark">ตัดหลุดจำนำ?</p>
@@ -531,13 +705,20 @@ function RedeemForm({
   const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]>("CASH");
   const [received, setReceived] = useState("");
 
-  // คำนวณเหมือน Server Action: ดอกเบี้ยค้าง = จำนวนรอบที่เกิน (10 วัน) × ดอกเบี้ยต่องวด
+  // คำนวณเหมือน Server Action (Fixed Cycle): งวดนับจากวันเริ่มสัญญา ขั้นต่ำ 1 งวด
+  // หักงวดที่จ่ายไปแล้วตอนต่อดอก (renewalCount) เพื่อไม่เก็บซ้ำ
   const dueDate = new Date(contract.dueDate);
-  const rounds = calcOverdueRounds(dueDate, new Date());
-  const interestDue =
-    rounds *
-    calcPeriodInterest(contract.principalAmount, contract.interestRatePercent);
-  const total = contract.principalAmount + interestDue;
+  const calc = calcRedemption({
+    principal: contract.principalAmount,
+    interestRatePercent: contract.interestRatePercent,
+    cycleDays: PAWN_TERM_DAYS,
+    startDate: new Date(contract.startDate),
+    redemptionDate: new Date(),
+    paidCycles: contract.renewalCount,
+  });
+  const rounds = calc.dueCycles; // งวดที่ต้องชำระ (หลังหักที่ต่อดอกไปแล้ว)
+  const interestDue = calc.totalInterest;
+  const total = calc.totalAmount;
   const receivedAmount = received === "" ? total : Number(received);
   const change = method === "CASH" ? Math.max(receivedAmount - total, 0) : 0;
   const enoughCash = method !== "CASH" || receivedAmount >= total;
@@ -569,7 +750,7 @@ function RedeemForm({
   }
 
   return (
-    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-success/30 bg-success/5 px-4 py-4 md:mx-0 md:mb-0 md:mt-0 md:px-6">
+    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-success/30 bg-success/5 px-4 py-4 sm:mx-0 sm:mb-0 sm:mt-0 sm:px-6">
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
         <div className="flex items-center gap-2">
           <HandCoins className="h-5 w-5 text-success" />
@@ -578,10 +759,11 @@ function RedeemForm({
               ไถ่ถอน — คืนสิ่งของให้ลูกค้า
             </p>
             <p className="text-xs font-medium text-zinc-500">
-              ครบกำหนด {formatDate(dueDate)}
-              {rounds > 0
-                ? ` · เกินกำหนด ${rounds} รอบ (รอบละ ${PAWN_TERM_DAYS} วัน)`
-                : " · ยังไม่เกินกำหนด รับเฉพาะเงินต้น"}
+              เริ่มสัญญา {formatDate(new Date(contract.startDate))} · ครบกำหนด{" "}
+              {formatDate(dueDate)} · ผ่านมาแล้ว {calc.daysElapsed} วัน —
+              คิดดอกเบี้ย {calc.totalCycles} งวด (รอบละ {PAWN_TERM_DAYS} วัน)
+              {contract.renewalCount > 0 &&
+                ` · หักที่ต่อดอกไปแล้ว ${contract.renewalCount} งวด`}
             </p>
           </div>
         </div>
@@ -623,7 +805,7 @@ function RedeemForm({
             </button>
           ))}
         </div>
-        {method === "CASH" && (
+        {/* {method === "CASH" && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-zinc-500">รับเงิน:</span>
             {[total, 1000].map((amt) => (
@@ -651,7 +833,7 @@ function RedeemForm({
               </b>
             </span>
           </div>
-        )}
+        )} */}
         <Button
           variant="success"
           className="ml-auto"
@@ -698,6 +880,21 @@ function RedeemSummary({
         {value}
       </p>
       {hint && <p className="text-[11px] text-zinc-400">{hint}</p>}
+    </div>
+  );
+}
+
+function CardLine({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="shrink-0 text-zinc-400">{label}</dt>
+      <dd className="min-w-0 text-right text-zinc-700">{children}</dd>
     </div>
   );
 }

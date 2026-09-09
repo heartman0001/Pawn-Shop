@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   Package,
+  Settings2,
   Store,
   Users,
   X,
@@ -25,6 +26,7 @@ const NAV_LINKS = [
   { href: "/pawns", label: "รับจำนำ", icon: HandCoins },
   { href: "/products", label: "สต็อก", icon: Package },
   { href: "/customers", label: "ลูกค้า", icon: Users },
+  { href: "/manage", label: "จัดการข้อมูล", icon: Settings2 },
   { href: "/reports", label: "รายงาน", icon: ChartColumn },
 ];
 
