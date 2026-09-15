@@ -15,6 +15,7 @@ import {
   Settings2,
   Store,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
@@ -27,6 +28,7 @@ const NAV_LINKS = [
   { href: "/products", label: "สต็อก", icon: Package },
   { href: "/customers", label: "ลูกค้า", icon: Users },
   { href: "/manage", label: "จัดการข้อมูล", icon: Settings2 },
+  { href: "/incomes", label: "รายรับ", icon: Wallet },
   { href: "/reports", label: "รายงาน", icon: ChartColumn },
 ];
 

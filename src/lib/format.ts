@@ -59,6 +59,23 @@ export const EXPENSE_CATEGORY_LABEL: Record<string, string> = {
   PAWN_PRINCIPAL: "จ่ายเงินต้นรับจำนำ",
 };
 
+/** หมวดของรายรับที่บันทึกเอง (เก็บใน Expense.kind = INCOME) */
+export const INCOME_CATEGORIES = [
+  "REPAIR",
+  "SERVICE",
+  "COMMISSION",
+  "OTHER",
+] as const;
+
+export type IncomeCategory = (typeof INCOME_CATEGORIES)[number];
+
+export const INCOME_CATEGORY_LABEL: Record<IncomeCategory, string> = {
+  REPAIR: "ค่าซ่อม",
+  SERVICE: "ค่าบริการ",
+  COMMISSION: "คอมมิชชั่น",
+  OTHER: "อื่นๆ",
+};
+
 export const PAYMENT_METHODS: PaymentMethod[] = [
   "CASH",
   "QR",

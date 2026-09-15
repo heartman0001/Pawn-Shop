@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarRange, Filter } from "lucide-react";
+import { CalendarRange, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/prisma";
 import { addDays, parseDateOnly } from "@/lib/pawn-math";
@@ -8,8 +8,10 @@ import {
   formatBaht,
   formatDate,
   formatDateTime,
+  INCOME_CATEGORY_LABEL,
   PAYMENT_METHOD_LABEL,
 } from "@/lib/format";
+import type { IncomeCategory } from "@/lib/format";
 import type { PaymentMethod } from "@prisma/client";
 import { Badge, Button, Card, Input } from "@/components/ui";
 import { cn } from "@/components/ui";
@@ -17,7 +19,20 @@ import { SaleItemsAccordion, type SaleItemRow } from "./sale-items-accordion";
 
 export const metadata = { title: "รายงานรายรับ — ร้านรับจำนำ POS" };
 
-type ReportSearchParams = { from?: string; to?: string; all?: string };
+type ReportSearchParams = {
+  from?: string;
+  to?: string;
+  all?: string;
+  // pagination แยกหน้าของแต่ละตาราง (5 แถว/หน้า)
+  pp?: string; // บิลขาย POS
+  rp?: string; // ไถ่ถอน
+  np?: string; // ต่อดอกเบี้ย
+  ip?: string; // รายรับอื่นๆ
+  ep?: string; // รายจ่าย
+};
+
+// จำนวนแถวต่อหน้าของแต่ละตารางในรายงาน
+const PAGE_SIZE = 5;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -59,9 +74,42 @@ export default async function ReportsPage({
   const presetLink = (query: string) => `/reports?${query}`;
 
   // ------------------------------------------------------------------
+  // pagination รายตาราง — ลิงก์เปลี่ยนหน้าแบบ URL (เหมือนหน้า dashboard)
+  // ------------------------------------------------------------------
+  const parsePage = (v?: string) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n > 0 ? n : 1;
+  };
+  const pages = {
+    pos: parsePage(sp.pp),
+    redeem: parsePage(sp.rp),
+    renew: parsePage(sp.np),
+    income: parsePage(sp.ip),
+    expense: parsePage(sp.ep),
+  };
+  const pageHref = (key: keyof typeof pages, page: number) => {
+    const q = new URLSearchParams();
+    // คงค่าตัวกรองช่วงวันที่ไว้
+    if (isAll) q.set("all", "1");
+    else {
+      if (sp.from) q.set("from", sp.from);
+      if (sp.to) q.set("to", sp.to);
+    }
+    // คงหน้าปัจจุบันของตารางอื่นๆ ไว้
+    const next = { ...pages, [key]: page };
+    if (next.pos > 1) q.set("pp", String(next.pos));
+    if (next.redeem > 1) q.set("rp", String(next.redeem));
+    if (next.renew > 1) q.set("np", String(next.renew));
+    if (next.income > 1) q.set("ip", String(next.income));
+    if (next.expense > 1) q.set("ep", String(next.expense));
+    const qs = q.toString();
+    return qs ? `/reports?${qs}` : "/reports";
+  };
+
+  // ------------------------------------------------------------------
   // ดึงข้อมูล 3 ช่องทางรายรับ
   // ------------------------------------------------------------------
-  const [sales, redeems, renewals, expenses] = await Promise.all([
+  const [sales, redeems, renewals, expenses, manualIncomes] = await Promise.all([
     db.saleOrder.findMany({
       where: { createdAt: range },
       orderBy: { createdAt: "desc" },
@@ -92,12 +140,18 @@ export default async function ReportsPage({
         contract: { select: { contractNumber: true, itemName: true } },
       },
     }),
+    // รายจ่ายเท่านั้น (ไม่รวมรายรับที่บันทึกเอง — กันนับซ้ำในเงินคงเหลือ)
     db.expense.findMany({
-      where: { createdAt: range },
+      where: { createdAt: range, kind: "EXPENSE" },
       orderBy: { createdAt: "desc" },
       include: {
         contract: { select: { contractNumber: true, itemName: true } },
       },
+    }),
+    // รายรับที่บันทึกเอง (เช่น ค่าซ่อมมือถือ) — Expense kind = INCOME
+    db.expense.findMany({
+      where: { createdAt: range, kind: "INCOME" },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -129,8 +183,34 @@ export default async function ReportsPage({
   let expenseTotal = 0;
   for (const e of expenses) expenseTotal += e.amount;
 
-  const grandTotal = posTotal + redeemTotal + renewTotal;
+  let manualIncomeTotal = 0;
+  for (const e of manualIncomes) manualIncomeTotal += e.amount;
+
+  const grandTotal = posTotal + redeemTotal + renewTotal + manualIncomeTotal;
   const netTotal = grandTotal - expenseTotal;
+
+  // ------------------------------------------------------------------
+  // pagination: จำนวนหน้า + แถวที่จะแสดงของแต่ละตาราง (5 แถว/หน้า)
+  // ยอดรวมในการ์ดสรุปคิดจาก "ทั้งหมด" ไม่ใช่เฉพาะหน้าที่แสดง
+  // ------------------------------------------------------------------
+  const totalPagesOf = (n: number) => Math.max(1, Math.ceil(n / PAGE_SIZE));
+  const posTotalPages = totalPagesOf(sales.length);
+  const redeemTotalPages = totalPagesOf(redeems.length);
+  const renewTotalPages = totalPagesOf(renewals.length);
+  const incomeTotalPages = totalPagesOf(manualIncomes.length);
+  const expenseTotalPages = totalPagesOf(expenses.length);
+  const posPage = Math.min(pages.pos, posTotalPages);
+  const redeemPage = Math.min(pages.redeem, redeemTotalPages);
+  const renewPage = Math.min(pages.renew, renewTotalPages);
+  const incomePage = Math.min(pages.income, incomeTotalPages);
+  const expensePage = Math.min(pages.expense, expenseTotalPages);
+  const slicePage = <T,>(arr: T[], page: number) =>
+    arr.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const posRows = slicePage(sales, posPage);
+  const redeemRows = slicePage(redeems, redeemPage);
+  const renewRows = slicePage(renewals, renewPage);
+  const incomeRows = slicePage(manualIncomes, incomePage);
+  const expenseRows = slicePage(expenses, expensePage);
 
   // ------------------------------------------------------------------
   // UI
@@ -211,11 +291,11 @@ export default async function ReportsPage({
       </Card>
 
       {/* การ์ดสรุป */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         <SummaryCard
           label="รายรับรวม"
           value={formatBaht(grandTotal)}
-          sub={`${sales.length} บิลขาย · ${redeems.length} ครั้งไถ่ถอน · ${renewals.length} ครั้งต่อดอก`}
+          sub={`${sales.length} บิลขาย · ${redeems.length} ครั้งไถ่ถอน · ${renewals.length} ครั้งต่อดอก${manualIncomes.length > 0 ? ` · ${manualIncomes.length} รายรับอื่น` : ""}`}
           accent="gold"
         />
         <SummaryCard
@@ -235,6 +315,12 @@ export default async function ReportsPage({
           value={formatBaht(renewTotal)}
           sub={`${renewals.length} ครั้ง`}
           accent="coral"
+        />
+        <SummaryCard
+          label="รายรับอื่นๆ"
+          value={formatBaht(manualIncomeTotal)}
+          sub={manualIncomes.length > 0 ? `${manualIncomes.length} รายการ (เช่น ค่าซ่อม)` : "ไม่มีรายการ"}
+          accent="green"
         />
         <SummaryCard
           label="รายจ่าย"
@@ -271,14 +357,17 @@ export default async function ReportsPage({
         title={`บิลขายหน้าร้าน (${sales.length})`}
         total={formatBaht(posTotal)}
         tone="teal"
+        page={posPage}
+        totalPages={posTotalPages}
+        pageHref={(p) => pageHref("pos", p)}
         mobile={
-          sales.length === 0 ? <EmptyCard /> : <SalesCards rows={sales} />
+          sales.length === 0 ? <EmptyCard /> : <SalesCards rows={posRows} />
         }
       >
         {sales.length === 0 ? (
           <EmptyRow />
         ) : (
-          <SalesTable rows={sales} />
+          <SalesTable rows={posRows} />
         )}
       </ReportSection>
 
@@ -287,14 +376,17 @@ export default async function ReportsPage({
         title={`การไถ่ถอน (${redeems.length})`}
         total={formatBaht(redeemTotal)}
         tone="sky"
+        page={redeemPage}
+        totalPages={redeemTotalPages}
+        pageHref={(p) => pageHref("redeem", p)}
         mobile={
-          redeems.length === 0 ? <EmptyCard /> : <RedeemCards rows={redeems} />
+          redeems.length === 0 ? <EmptyCard /> : <RedeemCards rows={redeemRows} />
         }
       >
         {redeems.length === 0 ? (
           <EmptyRow />
         ) : (
-          <RedeemTable rows={redeems} />
+          <RedeemTable rows={redeemRows} />
         )}
       </ReportSection>
 
@@ -303,14 +395,36 @@ export default async function ReportsPage({
         title={`การต่อดอกเบี้ย (${renewals.length})`}
         total={formatBaht(renewTotal)}
         tone="coral"
+        page={renewPage}
+        totalPages={renewTotalPages}
+        pageHref={(p) => pageHref("renew", p)}
         mobile={
-          renewals.length === 0 ? <EmptyCard /> : <RenewCards rows={renewals} />
+          renewals.length === 0 ? <EmptyCard /> : <RenewCards rows={renewRows} />
         }
       >
         {renewals.length === 0 ? (
           <EmptyRow />
         ) : (
-          <RenewTable rows={renewals} />
+          <RenewTable rows={renewRows} />
+        )}
+      </ReportSection>
+
+      {/* ===== รายรับอื่นๆ (บันทึกเอง) ===== */}
+      <ReportSection
+        title={`รายรับอื่นๆ — บันทึกเอง (${manualIncomes.length})`}
+        total={formatBaht(manualIncomeTotal)}
+        tone="green"
+        page={incomePage}
+        totalPages={incomeTotalPages}
+        pageHref={(p) => pageHref("income", p)}
+        mobile={
+          manualIncomes.length === 0 ? <EmptyCard /> : <IncomeCards rows={incomeRows} />
+        }
+      >
+        {manualIncomes.length === 0 ? (
+          <EmptyRow />
+        ) : (
+          <IncomeTableRows rows={incomeRows} />
         )}
       </ReportSection>
 
@@ -319,14 +433,17 @@ export default async function ReportsPage({
         title={`รายจ่าย — เงินต้นที่จ่ายรับจำนำ (${expenses.length})`}
         total={`−${formatBaht(expenseTotal)}`}
         tone="red"
+        page={expensePage}
+        totalPages={expenseTotalPages}
+        pageHref={(p) => pageHref("expense", p)}
         mobile={
-          expenses.length === 0 ? <EmptyCard /> : <ExpenseCards rows={expenses} />
+          expenses.length === 0 ? <EmptyCard /> : <ExpenseCards rows={expenseRows} />
         }
       >
         {expenses.length === 0 ? (
           <EmptyRow />
         ) : (
-          <ExpenseTable rows={expenses} />
+          <ExpenseTable rows={expenseRows} />
         )}
       </ReportSection>
     </div>
@@ -346,7 +463,7 @@ function SummaryCard({
   label: string;
   value: string;
   sub?: string;
-  accent: "teal" | "gold" | "sky" | "coral" | "red";
+  accent: "teal" | "gold" | "sky" | "coral" | "red" | "green";
 }) {
   const bar = {
     teal: "border-l-primary",
@@ -354,6 +471,7 @@ function SummaryCard({
     sky: "border-l-sky",
     coral: "border-l-coral",
     red: "border-l-error",
+    green: "border-l-success",
   }[accent];
   return (
     <Card className={`overflow-hidden border-l-8 p-4 ${bar}`}>
@@ -387,12 +505,18 @@ function ReportSection({
   title,
   total,
   tone,
+  page,
+  totalPages,
+  pageHref,
   mobile,
   children,
 }: {
   title: string;
   total: string;
-  tone: "teal" | "sky" | "coral" | "red";
+  tone: "teal" | "sky" | "coral" | "red" | "green";
+  page: number;
+  totalPages: number;
+  pageHref: (page: number) => string;
   mobile?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -401,6 +525,7 @@ function ReportSection({
     sky: "text-sky",
     coral: "text-coral",
     red: "text-error",
+    green: "text-success",
   }[tone];
   return (
     <Card className="overflow-hidden">
@@ -432,7 +557,49 @@ function ReportSection({
       {mobile && (
         <div className="space-y-3 p-3 sm:hidden">{mobile}</div>
       )}
+
+      <Pagination page={page} totalPages={totalPages} pageHref={pageHref} />
     </Card>
+  );
+}
+
+// Pagination — เลย์เอาต์เดียวกับหน้า dashboard (ลิงก์เปลี่ยนหน้าแบบ URL)
+function Pagination({
+  page,
+  totalPages,
+  pageHref,
+}: {
+  page: number;
+  totalPages: number;
+  pageHref: (page: number) => string;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-primary/25 px-5 py-3">
+      <Link
+        href={pageHref(Math.max(page - 1, 1))}
+        aria-disabled={page <= 1}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          page <= 1 && "pointer-events-none opacity-40"
+        )}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Link>
+      <span className="text-xs font-bold text-zinc-500">
+        หน้า {page} / {totalPages}
+      </span>
+      <Link
+        href={pageHref(Math.min(page + 1, totalPages))}
+        aria-disabled={page >= totalPages}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          page >= totalPages && "pointer-events-none opacity-40"
+        )}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Link>
+    </div>
   );
 }
 
@@ -650,6 +817,76 @@ function RedeemCards({
             </CardLine>
             <CardLine label="ชำระ">
               <MethodBadge method={r.paymentMethod} />
+            </CardLine>
+          </dl>
+        </ReportCard>
+      ))}
+    </>
+  );
+}
+
+// ---- ตารางรายรับอื่นๆ (บันทึกเอง) ----
+function IncomeTableRows({
+  rows,
+}: {
+  rows: {
+    id: string;
+    createdAt: Date;
+    amount: number;
+    category: string;
+    description: string;
+  }[];
+}) {
+  return (
+    <>
+      {rows.map((r) => (
+        <tr key={r.id} className="hover:bg-primary/5">
+          <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
+            {formatDateTime(r.createdAt)}
+          </td>
+          <td className="px-4 py-2.5 font-bold text-zinc-800">—</td>
+          <td className="px-4 py-2.5">
+            <p className="text-zinc-600">{r.description}</p>
+            <p className="text-xs text-zinc-400">
+              {INCOME_CATEGORY_LABEL[r.category as IncomeCategory] ?? r.category}
+            </p>
+          </td>
+          <td className="px-4 py-2.5">
+            <Badge tone="green" className="whitespace-nowrap">
+              รายรับ
+            </Badge>
+          </td>
+          <td className="px-4 py-2.5 text-right font-extrabold text-success">
+            +{formatBaht(r.amount)}
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
+// ---- การ์ดรายรับอื่นๆ (mobile) ----
+function IncomeCards({
+  rows,
+}: {
+  rows: Parameters<typeof IncomeTableRows>[0]["rows"];
+}) {
+  return (
+    <>
+      {rows.map((r) => (
+        <ReportCard key={r.id}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-bold text-primary-dark">{r.description}</span>
+            <span className="whitespace-nowrap font-extrabold text-success">
+              +{formatBaht(r.amount)}
+            </span>
+          </div>
+          <dl className="mt-3 space-y-1.5 text-sm">
+            <CardLine label="วัน/เวลา">
+              {formatDateTime(r.createdAt)}
+            </CardLine>
+            <CardLine label="หมวด">
+              {INCOME_CATEGORY_LABEL[r.category as IncomeCategory] ?? r.category}
             </CardLine>
           </dl>
         </ReportCard>

@@ -79,9 +79,17 @@ export function ManageClient({
   const [customerRows, setCustomerRows] = useState<CustomerRow[]>(customers);
   const [itemRows, setItemRows] = useState<ContractRow[]>(contracts);
 
-  // props ใหม่จาก router.refresh() → sync กลับเข้า state
-  useEffect(() => setCustomerRows(customers), [customers]);
-  useEffect(() => setItemRows(contracts), [contracts]);
+  // props ใหม่จาก router.refresh() → sync กลับเข้า state (ปรับ state ตอน render ตามแนวทาง React)
+  const [prevCustomers, setPrevCustomers] = useState(customers);
+  if (prevCustomers !== customers) {
+    setPrevCustomers(customers);
+    setCustomerRows(customers);
+  }
+  const [prevContracts, setPrevContracts] = useState(contracts);
+  if (prevContracts !== contracts) {
+    setPrevContracts(contracts);
+    setItemRows(contracts);
+  }
 
   function showToast(msg: string, ok = true) {
     if (!ok) {
@@ -425,11 +433,13 @@ function CustomerTable({
   const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
   const dPage = Math.min(desktopPage, dTotalPages);
   const mPage = Math.min(mobilePage, mTotalPages);
-  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ
-  useEffect(() => {
+  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ (ปรับ state ตอน render)
+  const [prevSearch, setPrevSearch] = useState(search);
+  if (prevSearch !== search) {
+    setPrevSearch(search);
     setDesktopPage(1);
     setMobilePage(1);
-  }, [search]);
+  }
   const desktopRows = rows.slice(
     (dPage - 1) * DESKTOP_PAGE_SIZE,
     dPage * DESKTOP_PAGE_SIZE
@@ -575,11 +585,13 @@ function ItemTable({
   const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
   const dPage = Math.min(desktopPage, dTotalPages);
   const mPage = Math.min(mobilePage, mTotalPages);
-  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ
-  useEffect(() => {
+  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ (ปรับ state ตอน render)
+  const [prevSearch, setPrevSearch] = useState(search);
+  if (prevSearch !== search) {
+    setPrevSearch(search);
     setDesktopPage(1);
     setMobilePage(1);
-  }, [search]);
+  }
   const desktopRows = rows.slice(
     (dPage - 1) * DESKTOP_PAGE_SIZE,
     dPage * DESKTOP_PAGE_SIZE

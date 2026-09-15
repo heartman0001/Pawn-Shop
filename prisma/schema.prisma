@@ -22,6 +22,12 @@ enum PawnStatus {
   SOLD // ขายหน้าร้านไปแล้ว (หลังหลุดจำนำ)
 }
 
+// ประเภทกระแสเงินสดของตาราง Expense (รวมทั้งรายรับและรายจ่ายที่บันทึกเอง)
+enum ExpenseKind {
+  EXPENSE // รายจ่าย — เงินออกจากร้าน (เช่น เงินต้นที่จ่ายเมื่อรับจำนำ)
+  INCOME  // รายรับอื่นๆ ที่บันทึกเอง (เช่น ค่าซ่อมมือถือ)
+}
+
 enum PaymentMethod {
   CASH // เงินสด
   QR // PromptPay / QR
@@ -99,7 +105,8 @@ model RetailProduct {
 model Expense {
   id          String        @id @default(cuid())
   amount      Int // จำนวนเงิน (บาท)
-  category    String // เช่น PAWN_PRINCIPAL = จ่ายเงินต้นรับจำนำ
+  kind        ExpenseKind   @default(EXPENSE) // EXPENSE = รายจ่าย, INCOME = รายรับที่บันทึกเอง
+  category    String // EXPENSE: PAWN_PRINCIPAL = จ่ายเงินต้นรับจำนำ · INCOME: REPAIR / SERVICE / OTHER
   description String
   contractId  String?      @unique // ผูกกับสัญญาจำนำ (ถ้ารายจ่ายเกิดจากสัญญา — สัญญาละ 1 รายการ)
   contract    PawnContract? @relation(fields: [contractId], references: [id])
@@ -107,6 +114,7 @@ model Expense {
 
   @@index([createdAt])
   @@index([category])
+  @@index([kind])
 }
 
 model PawnRenewal {
