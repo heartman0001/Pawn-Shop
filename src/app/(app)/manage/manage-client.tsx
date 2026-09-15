@@ -5,6 +5,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ChevronLeft,
+  ChevronRight,
   Gavel,
   HandCoins,
   Package,
@@ -351,6 +353,57 @@ function TabBtn({
 }
 
 // ---------------------------------------------------------------------------
+// Pagination — เลย์เอาต์เดียวกับ Pagination ของหน้า dashboard แต่เปลี่ยนหน้าฝั่ง client
+// desktop (ตาราง) 20 แถว/หน้า · mobile (การ์ด) 10 ใบ/หน้า
+// ---------------------------------------------------------------------------
+
+const DESKTOP_PAGE_SIZE = 20;
+const MOBILE_PAGE_SIZE = 10;
+
+function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-primary/25 px-5 py-3">
+      <button
+        type="button"
+        aria-label="หน้าก่อนหน้า"
+        onClick={() => onPageChange(Math.max(page - 1, 1))}
+        disabled={page <= 1}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          page <= 1 && "pointer-events-none opacity-40"
+        )}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <span className="text-xs font-bold text-zinc-500">
+        หน้า {page} / {totalPages}
+      </span>
+      <button
+        type="button"
+        aria-label="หน้าถัดไป"
+        onClick={() => onPageChange(Math.min(page + 1, totalPages))}
+        disabled={page >= totalPages}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          page >= totalPages && "pointer-events-none opacity-40"
+        )}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ตารางลูกค้า — desktop table / mobile cards
 // ---------------------------------------------------------------------------
 
@@ -365,6 +418,27 @@ function CustomerTable({
   onEdit: (row: CustomerRow) => void;
   onDeleteAsk: (row: CustomerRow) => void;
 }) {
+  // pagination — เปลี่ยนหน้าฝั่ง client (desktop 20 แถว / mobile 10 การ์ด ต่อหน้า)
+  const [desktopPage, setDesktopPage] = useState(1);
+  const [mobilePage, setMobilePage] = useState(1);
+  const dTotalPages = Math.max(1, Math.ceil(rows.length / DESKTOP_PAGE_SIZE));
+  const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
+  const dPage = Math.min(desktopPage, dTotalPages);
+  const mPage = Math.min(mobilePage, mTotalPages);
+  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ
+  useEffect(() => {
+    setDesktopPage(1);
+    setMobilePage(1);
+  }, [search]);
+  const desktopRows = rows.slice(
+    (dPage - 1) * DESKTOP_PAGE_SIZE,
+    dPage * DESKTOP_PAGE_SIZE
+  );
+  const mobileRows = rows.slice(
+    (mPage - 1) * MOBILE_PAGE_SIZE,
+    mPage * MOBILE_PAGE_SIZE
+  );
+
   return (
     <div className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
       {/* Desktop */}
@@ -388,7 +462,7 @@ function CustomerTable({
                 </td>
               </tr>
             )}
-            {rows.map((c) => (
+            {desktopRows.map((c) => (
               <tr key={c.id} className="hover:bg-primary/5">
                 <td className="px-4 py-2.5 font-bold text-zinc-800">
                   {c.fullName}
@@ -423,6 +497,13 @@ function CustomerTable({
           </tbody>
         </table>
       </div>
+      <div className="hidden sm:block">
+        <Pagination
+          page={dPage}
+          totalPages={dTotalPages}
+          onPageChange={setDesktopPage}
+        />
+      </div>
 
       {/* Mobile */}
       <div className="space-y-3 p-3 sm:hidden">
@@ -431,7 +512,7 @@ function CustomerTable({
             {search ? `ไม่พบลูกค้า “${search}”` : "ยังไม่มีลูกค้า"}
           </div>
         )}
-        {rows.map((c) => (
+        {mobileRows.map((c) => (
           <div
             key={c.id}
             className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
@@ -461,6 +542,13 @@ function CustomerTable({
           </div>
         ))}
       </div>
+      <div className="sm:hidden">
+        <Pagination
+          page={mPage}
+          totalPages={mTotalPages}
+          onPageChange={setMobilePage}
+        />
+      </div>
     </div>
   );
 }
@@ -480,6 +568,27 @@ function ItemTable({
   onEdit: (row: ContractRow) => void;
   onDeleteAsk: (row: ContractRow) => void;
 }) {
+  // pagination — เปลี่ยนหน้าฝั่ง client (desktop 20 แถว / mobile 10 การ์ด ต่อหน้า)
+  const [desktopPage, setDesktopPage] = useState(1);
+  const [mobilePage, setMobilePage] = useState(1);
+  const dTotalPages = Math.max(1, Math.ceil(rows.length / DESKTOP_PAGE_SIZE));
+  const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
+  const dPage = Math.min(desktopPage, dTotalPages);
+  const mPage = Math.min(mobilePage, mTotalPages);
+  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ
+  useEffect(() => {
+    setDesktopPage(1);
+    setMobilePage(1);
+  }, [search]);
+  const desktopRows = rows.slice(
+    (dPage - 1) * DESKTOP_PAGE_SIZE,
+    dPage * DESKTOP_PAGE_SIZE
+  );
+  const mobileRows = rows.slice(
+    (mPage - 1) * MOBILE_PAGE_SIZE,
+    mPage * MOBILE_PAGE_SIZE
+  );
+
   return (
     <div className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
       {/* Desktop */}
@@ -504,7 +613,7 @@ function ItemTable({
                 </td>
               </tr>
             )}
-            {rows.map((c) => (
+            {desktopRows.map((c) => (
               <tr key={c.id} className="hover:bg-primary/5">
                 <td className="whitespace-nowrap px-4 py-2.5 font-bold text-zinc-800">
                   {c.contractNumber}
@@ -564,6 +673,13 @@ function ItemTable({
           </tbody>
         </table>
       </div>
+      <div className="hidden sm:block">
+        <Pagination
+          page={dPage}
+          totalPages={dTotalPages}
+          onPageChange={setDesktopPage}
+        />
+      </div>
 
       {/* Mobile */}
       <div className="space-y-3 p-3 sm:hidden">
@@ -572,7 +688,7 @@ function ItemTable({
             {search ? `ไม่พบ “${search}”` : "ยังไม่มีสินค้ารับจำนำ"}
           </div>
         )}
-        {rows.map((c) => (
+        {mobileRows.map((c) => (
           <div
             key={c.id}
             className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
@@ -618,6 +734,13 @@ function ItemTable({
             </div>
           </div>
         ))}
+      </div>
+      <div className="sm:hidden">
+        <Pagination
+          page={mPage}
+          totalPages={mTotalPages}
+          onPageChange={setMobilePage}
+        />
       </div>
     </div>
   );
