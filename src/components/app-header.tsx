@@ -29,6 +29,7 @@ const NAV_LINKS = [
   { href: "/customers", label: "ลูกค้า", icon: Users },
   { href: "/manage", label: "จัดการข้อมูล", icon: Settings2 },
   { href: "/incomes", label: "รายรับ", icon: Wallet },
+  { href: "/expenses", label: "รายจ่าย", icon: Wallet },
   { href: "/reports", label: "รายงาน", icon: ChartColumn },
 ];
 

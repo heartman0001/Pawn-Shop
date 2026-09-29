@@ -11,50 +11,43 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { deleteIncome, upsertIncome } from "@/app/actions/income";
+import { deleteExpense, upsertExpense } from "@/app/actions/expense";
 import {
   formatBaht,
   formatDateTime,
-  INCOME_CATEGORIES,
-  INCOME_CATEGORY_LABEL,
+  EXPENSE_CATEGORY_LABEL,
+  EXPENSE_CATEGORY_FULL_LABEL,
 } from "@/lib/format";
-import type { IncomeCategory } from "@/lib/format";
+import type { ExpenseCategory } from "@/lib/format";
 import { Badge, Button, Field, Input, Select } from "@/components/ui";
 import { cn } from "@/components/ui";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface IncomeRow {
+export interface ExpenseRow {
   id: string;
   amount: number;
-  costPrice: number;
   category: string;
   description: string;
   createdAt: string;
+  contractNumber: string | null;
+  itemName: string | null;
+  contractId: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
+export function ExpensesClient({ expenses }: { expenses: ExpenseRow[] }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [rows, setRows] = useState<IncomeRow[]>(incomes);
+  const [rows, setRows] = useState<ExpenseRow[]>(expenses);
   const [modal, setModal] = useState<
-    { mode: "add" } | { mode: "edit"; row: IncomeRow } | null
+    { mode: "add" } | { mode: "edit"; row: ExpenseRow } | null
   >(null);
-  const [confirmDelete, setConfirmDelete] = useState<IncomeRow | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<ExpenseRow | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
-  // props ใหม่จาก router.refresh() → sync เข้า state (ปรับ state ตอน render ตามแนวทาง React)
-  const [prevIncomes, setPrevIncomes] = useState(incomes);
-  if (prevIncomes !== incomes) {
-    setPrevIncomes(incomes);
-    setRows(incomes);
+  const [prevExpenses, setPrevExpenses] = useState(expenses);
+  if (prevExpenses !== expenses) {
+    setPrevExpenses(expenses);
+    setRows(expenses);
   }
 
   function showToast(msg: string, ok = true) {
@@ -66,14 +59,13 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
     window.setTimeout(() => setToast(null), 4000);
   }
 
-  /** เรียก server action แบบกัน throw (network/500) → คืน ok:false เสมอ */
   async function safeAction<T extends { ok: boolean; error?: string }>(
     fn: () => Promise<T>
   ): Promise<T | { ok: false; error: string }> {
     try {
       return await fn();
     } catch (e) {
-      console.error("[incomes] action failed:", e);
+      console.error("[expenses] action failed:", e);
       return {
         ok: false,
         error: e instanceof Error ? e.message : "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง",
@@ -87,15 +79,16 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
     return rows.filter(
       (r) =>
         r.description.toLowerCase().includes(q) ||
-        (INCOME_CATEGORY_LABEL[r.category as IncomeCategory] ?? r.category)
-          .toLowerCase()
-          .includes(q)
+        (EXPENSE_CATEGORY_LABEL[r.category] ?? r.category).toLowerCase().includes(q) ||
+        (r.contractNumber ?? "").toLowerCase().includes(q)
     );
   }, [rows, search]);
 
   const total = filtered.reduce((sum, r) => sum + r.amount, 0);
-  const totalCost = filtered.reduce((sum, r) => sum + r.costPrice, 0);
-  const totalProfit = total - totalCost;
+
+  function openAddModal() {
+    setModal({ mode: "add" });
+  }
 
   return (
     <div className="space-y-4">
@@ -103,14 +96,14 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-primary-dark">
-            รายรับ
+            รายจ่าย
           </h1>
           <p className="text-sm text-zinc-500">
-            บันทึกรายรับอื่นๆ นอกเหนือจาก POS · ไถ่ถอน · ต่อดอก เช่น ค่าซ่อมมือถือ
+            เงินต้นที่จ่ายตอนรับจำนำ · ค่าใช้จ่ายอื่นๆ
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: "add" })}>
-          <CirclePlus className="h-4 w-4" /> เพิ่มรายรับ
+        <Button onClick={openAddModal}>
+          <CirclePlus className="h-4 w-4" /> เพิ่มรายจ่าย
         </Button>
       </div>
 
@@ -121,18 +114,13 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหารายละเอียด / หมวด…"
+            placeholder="ค้นหาสัญญา / หมวด…"
             className="pl-9"
           />
-        </div>          <Badge tone="green" className="h-9 px-4 text-sm">
-          <Wallet className="h-4 w-4" /> รวม {formatBaht(total)} · {filtered.length}{" "}
-          รายการ
+        </div>
+        <Badge tone="red" className="h-9 px-4 text-sm">
+          รวม {formatBaht(total)} · {filtered.length} รายการ
         </Badge>
-        {total > 0 && (
-            <span className="text-xs text-zinc-400">
-              กำไรสุทธิ {formatBaht(totalProfit)} (ต้นทุน {formatBaht(totalCost)})
-            </span>
-          )}
       </div>
 
       {/* Error banner */}
@@ -150,11 +138,11 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
         </div>
       )}
 
-      <IncomeTable rows={filtered} search={search} onEdit={(row) => setModal({ mode: "edit", row })} onDeleteAsk={(row) => setConfirmDelete(row)} />
+      <ExpenseTable rows={filtered} search={search} onEdit={(r) => setModal({ mode: "edit", row: r })} onDeleteAsk={(r) => setConfirmDelete(r)} />
 
       {/* Modal เพิ่ม/แก้ไข */}
       {modal && (
-        <IncomeModal
+        <ExpenseModal
           mode={modal.mode}
           row={modal.mode === "edit" ? modal.row : null}
           onClose={() => setModal(null)}
@@ -169,20 +157,20 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
       {/* Modal ยืนยันลบ */}
       {confirmDelete && (
         <ConfirmModal
-          title="ลบรายรับ?"
+          title="ลบรายจ่าย?"
           message={`ต้องการลบ "${confirmDelete.description}" (${formatBaht(confirmDelete.amount)}) ใช่หรือไม่?`}
           confirmLabel="ลบ"
           onClose={() => setConfirmDelete(null)}
           onConfirm={async () => {
             const row = confirmDelete;
             setConfirmDelete(null);
-            const result = await safeAction(() => deleteIncome({ id: row.id }));
+            const result = await safeAction(() => deleteExpense({ id: row.id }));
             if (result.ok) {
               setRows((rs) => rs.filter((r) => r.id !== row.id));
               showToast(`ลบ "${row.description}" แล้ว`);
               router.refresh();
             } else {
-              showToast(result.error ?? "ลบรายรับไม่สำเร็จ", false);
+              showToast(result.error ?? "ลบรายจ่ายไม่สำเร็จ", false);
             }
           }}
         />
@@ -204,37 +192,37 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// ตารางรายรับ — desktop table / mobile cards + pagination (desktop 20 / mobile 10)
+// ตารางรายจ่าย — desktop table / mobile cards + pagination
 // ---------------------------------------------------------------------------
 
 const DESKTOP_PAGE_SIZE = 20;
 const MOBILE_PAGE_SIZE = 10;
 
-function IncomeTable({
+function ExpenseTable({
   rows,
   search,
   onEdit,
   onDeleteAsk,
 }: {
-  rows: IncomeRow[];
+  rows: ExpenseRow[];
   search: string;
-  onEdit: (row: IncomeRow) => void;
-  onDeleteAsk: (row: IncomeRow) => void;
+  onEdit: (row: ExpenseRow) => void;
+  onDeleteAsk: (row: ExpenseRow) => void;
 }) {
-  // pagination — เปลี่ยนหน้าฝั่ง client (desktop 20 แถว / mobile 10 การ์ด ต่อหน้า)
   const [desktopPage, setDesktopPage] = useState(1);
   const [mobilePage, setMobilePage] = useState(1);
   const dTotalPages = Math.max(1, Math.ceil(rows.length / DESKTOP_PAGE_SIZE));
   const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
   const dPage = Math.min(desktopPage, dTotalPages);
   const mPage = Math.min(mobilePage, mTotalPages);
-  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ (ปรับ state ตอน render)
+
   const [prevSearch, setPrevSearch] = useState(search);
   if (prevSearch !== search) {
     setPrevSearch(search);
     setDesktopPage(1);
     setMobilePage(1);
   }
+
   const desktopRows = rows.slice(
     (dPage - 1) * DESKTOP_PAGE_SIZE,
     dPage * DESKTOP_PAGE_SIZE
@@ -252,8 +240,8 @@ function IncomeTable({
           <thead>
             <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
               <th className="px-4 py-3 font-medium">วัน/เวลา</th>
-              <th className="px-4 py-3 font-medium">หมวด</th>
-              <th className="px-4 py-3 font-medium">รายละเอียด</th>
+              <th className="px-4 py-3 font-medium">สัญญา / หมวด</th>
+              <th className="px-4 py-3 font-medium">รายการ</th>
               <th className="px-4 py-3 text-right font-medium">จำนวนเงิน</th>
               <th className="px-4 py-3 text-right font-medium">จัดการ</th>
             </tr>
@@ -262,7 +250,7 @@ function IncomeTable({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-zinc-400">
-                  {search ? `ไม่พบ “${search}”` : "ยังไม่มีรายรับ — กด “เพิ่มรายรับ” เพื่อเริ่ม"}
+                  {search ? `ไม่พบ "${search}"` : "ยังไม่มีรายจ่าย — กด “เพิ่มรายจ่าย” เพื่อเริ่ม"}
                 </td>
               </tr>
             )}
@@ -272,20 +260,20 @@ function IncomeTable({
                   {formatDateTime(r.createdAt)}
                 </td>
                 <td className="px-4 py-2.5">
-                  <CategoryBadge category={r.category} />
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium text-zinc-800">
+                      {r.contractNumber ?? (EXPENSE_CATEGORY_LABEL[r.category] ?? r.category)}
+                    </span>
+                    {r.itemName && (
+                      <span className="text-xs text-zinc-400">{r.itemName}</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-2.5 font-medium text-zinc-700">
                   {r.description}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right font-extrabold">
-                  <div className="flex items-center justify-end gap-2">
-                    <span>+{formatBaht(r.amount)}</span>
-                    {r.costPrice > 0 && (
-                      <span className="text-xs text-zinc-400">(
-                        {formatBaht(r.costPrice)}
-                      )</span>
-                    )}
-                  </div>
+                <td className="whitespace-nowrap px-4 py-2.5 text-right font-extrabold text-error">
+                  -{formatBaht(r.amount)}
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center justify-end gap-1.5">
@@ -295,7 +283,7 @@ function IncomeTable({
                     <button
                       type="button"
                       onClick={() => onDeleteAsk(r)}
-                      aria-label="ลบรายรับ"
+                      aria-label="ลบรายจ่าย"
                       className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-coral/10 hover:text-coral-dark"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -319,7 +307,7 @@ function IncomeTable({
       <div className="space-y-3 p-3 sm:hidden">
         {rows.length === 0 && (
           <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
-            {search ? `ไม่พบ “${search}”` : "ยังไม่มีรายรับ — กด “เพิ่มรายรับ” เพื่อเริ่ม"}
+            {search ? `ไม่พบ "${search}"` : "ยังไม่มีรายจ่าย — กด “เพิ่มรายจ่าย” เพื่อเริ่ม"}
           </div>
         )}
         {mobileRows.map((r) => (
@@ -329,18 +317,15 @@ function IncomeTable({
           >
             <div className="flex items-start justify-between gap-2">
               <span className="font-bold text-primary-dark">{r.description}</span>
-              <span className="whitespace-nowrap font-extrabold text-success">
-                +{formatBaht(r.amount)}
-                {r.costPrice > 0 && (
-                  <span className="text-xs text-zinc-400 ml-1">(ต้นทุน {formatBaht(r.costPrice)})</span>
-                )}
+              <span className="whitespace-nowrap font-extrabold text-error">
+                -{formatBaht(r.amount)}
               </span>
             </div>
             <dl className="mt-3 space-y-1.5 text-sm">
-              <Line label="หมวด">
-                <CategoryBadge category={r.category} />
-              </Line>
-              <Line label="วัน/เวลา">{formatDateTime(r.createdAt)}</Line>
+              <ExpenseLine label="สัญญา / หมวด">
+                {r.contractNumber ?? (EXPENSE_CATEGORY_LABEL[r.category] ?? r.category)}
+              </ExpenseLine>
+              <ExpenseLine label="วัน/เวลา">{formatDateTime(r.createdAt)}</ExpenseLine>
             </dl>
             <div className="mt-3 flex items-center justify-end gap-1.5 border-t-2 border-dashed border-primary/20 pt-3">
               <Button variant="ghost" size="sm" onClick={() => onEdit(r)}>
@@ -349,7 +334,7 @@ function IncomeTable({
               <button
                 type="button"
                 onClick={() => onDeleteAsk(r)}
-                aria-label="ลบรายรับ"
+                aria-label="ลบรายจ่าย"
                 className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-coral/10 hover:text-coral-dark"
               >
                 <Trash2 className="h-4 w-4" />
@@ -369,23 +354,148 @@ function IncomeTable({
   );
 }
 
-function CategoryBadge({ category }: { category: string }) {
-  const label =
-    INCOME_CATEGORY_LABEL[category as IncomeCategory] ?? category;
-  const tone =
-    category === "REPAIR"
-      ? "teal"
-      : category === "SERVICE"
-        ? "sky"
-        : category === "COMMISSION"
-          ? "gold"
-          : "gray";
-  return <Badge tone={tone}>{label}</Badge>;
+// ---------------------------------------------------------------------------
+// Modal: เพิ่ม/แก้ไขรายจ่าย
+// ---------------------------------------------------------------------------
+
+function ExpenseModal({
+  mode,
+  row,
+  onClose,
+  onDone,
+}: {
+  mode: "add" | "edit";
+  row: ExpenseRow | null;
+  onClose: () => void;
+  onDone: (msg: string) => void;
+}) {
+  const [amount, setAmount] = useState(row ? String(row.amount) : "");
+  const [category, setCategory] = useState<ExpenseCategory>(
+    (row?.category as ExpenseCategory) ?? "OTHER"
+  );
+  const [description, setDescription] = useState(row?.description ?? "");
+  const [contractId, setContractId] = useState(row?.contractId ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function submit() {
+    setError(null);
+    startTransition(async () => {
+      const result = await upsertExpense({
+        ...(mode === "edit" && row ? { id: row.id } : {}),
+        amount: Number(amount),
+        category,
+        description,
+        contractId: contractId || undefined,
+      });
+      if (result.ok) {
+        onDone(
+          mode === "edit"
+            ? `บันทึกการแก้ไข "${description}" แล้ว`
+            : `เพิ่มรายจ่าย "${description}" แล้ว`
+        );
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border-2 border-primary/15 bg-surface-card p-5 shadow-card sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between border-b-2 border-dashed border-primary/25 pb-3">
+          <h3 className="flex items-center gap-2 text-base font-extrabold text-primary-dark">
+            <Wallet className="h-5 w-5 text-primary" />
+            {mode === "edit" ? "แก้ไขรายจ่าย" : "เพิ่มรายจ่ายใหม่"}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-primary/10 hover:text-primary-dark"
+            aria-label="ปิด"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+          className="space-y-3"
+        >
+          <Field label="จำนวนเงิน (บาท)" required>
+            <Input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))}
+              inputMode="numeric"
+              placeholder="เช่น 5000"
+            />
+          </Field>
+          <Field label="หมวด" required>              <Select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+            >
+              {Object.entries(EXPENSE_CATEGORY_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="เลขที่สัญญา (ถ้ามี)">
+            <Input
+              value={contractId}
+              onChange={(e) => setContractId(e.target.value.trim())}
+              placeholder="เช่น PC-20260904-001"
+            />
+          </Field>
+          <Field label="รายละเอียด" required>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="เช่น จ่ายเงินต้นรับจำนำ"
+            />
+          </Field>
+          {error && (
+            <p className="flex items-center gap-1.5 rounded-xl bg-coral/10 px-3 py-2 text-sm font-bold text-coral-dark">
+              <TriangleAlert className="h-4 w-4" /> {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={onClose} disabled={pending}>
+              ยกเลิก
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "กำลังบันทึก…" : mode === "edit" ? "บันทึก" : "เพิ่มรายจ่าย"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
-// ---------------------------------------------------------------------------
-// Pagination — เลย์เอาต์เดียวกับหน้า customers / manage
-// ---------------------------------------------------------------------------
+function ExpenseLine({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="shrink-0 text-zinc-400">{label}</dt>
+      <dd className="min-w-0 text-right text-zinc-700">{children}</dd>
+    </div>
+  );
+}
 
 function Pagination({
   page,
@@ -451,136 +561,6 @@ function Pagination({
 }
 
 // ---------------------------------------------------------------------------
-// Modal: เพิ่ม/แก้ไขรายรับ
-// ---------------------------------------------------------------------------
-
-function IncomeModal({
-  mode,
-  row,
-  onClose,
-  onDone,
-}: {
-  mode: "add" | "edit";
-  row: IncomeRow | null;
-  onClose: () => void;
-  onDone: (msg: string) => void;
-}) {
-  const [amount, setAmount] = useState(row ? String(row.amount) : "");
-  const [costPrice, setCostPrice] = useState(row ? String(row.costPrice) : "");
-  const [category, setCategory] = useState<IncomeCategory>(
-    (row?.category as IncomeCategory) ?? "REPAIR"
-  );
-  const [description, setDescription] = useState(row?.description ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function submit() {
-    setError(null);
-    startTransition(async () => {
-      const result = await upsertIncome({
-        ...(mode === "edit" && row ? { id: row.id } : {}),
-        amount: Number(amount),
-        costPrice: Number(costPrice),
-        category,
-        description,
-      });
-      if (result.ok) {
-        onDone(
-          mode === "edit"
-            ? `บันทึกการแก้ไข "${description}" แล้ว`
-            : `เพิ่มรายรับ "${description}" แล้ว`
-        );
-      } else {
-        setError(result.error);
-      }
-    });
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border-2 border-primary/15 bg-surface-card p-5 shadow-card sm:rounded-3xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between border-b-2 border-dashed border-primary/25 pb-3">
-          <h3 className="flex items-center gap-2 text-base font-extrabold text-primary-dark">
-            <Wallet className="h-5 w-5 text-primary" />
-            {mode === "edit" ? "แก้ไขรายรับ" : "เพิ่มรายรับใหม่"}
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-primary/10 hover:text-primary-dark"
-            aria-label="ปิด"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit();
-          }}
-          className="space-y-3"
-        >
-          <Field label="จำนวนเงิน (บาท)" required>
-            <Input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))}
-              inputMode="numeric"
-              placeholder="เช่น 2000"
-            />
-          </Field>
-          <Field label="ต้นทุน (บาท)">
-            <Input
-              value={costPrice}
-              onChange={(e) => setCostPrice(e.target.value.replace(/[^\d]/g, ""))}
-              inputMode="numeric"
-              placeholder="เช่น 500"
-            />
-          </Field>
-          <Field label="หมวด" required>
-            <Select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as IncomeCategory)}
-            >
-              {INCOME_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {INCOME_CATEGORY_LABEL[c]}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="รายละเอียด" required>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="เช่น ซ่อมมือถือ — เปลี่ยนจอ iPhone 11"
-            />
-          </Field>
-          {error && (
-            <p className="flex items-center gap-1.5 rounded-xl bg-coral/10 px-3 py-2 text-sm font-bold text-coral-dark">
-              <TriangleAlert className="h-4 w-4" /> {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={onClose} disabled={pending}>
-              ยกเลิก
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "กำลังบันทึก…" : mode === "edit" ? "บันทึก" : "เพิ่มรายรับ"}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Modal: ยืนยันลบ
 // ---------------------------------------------------------------------------
 
@@ -626,21 +606,6 @@ function ConfirmModal({
           </Button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Line({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <dt className="shrink-0 text-zinc-400">{label}</dt>
-      <dd className="min-w-0 text-right text-zinc-700">{children}</dd>
     </div>
   );
 }

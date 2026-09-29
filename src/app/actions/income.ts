@@ -8,18 +8,22 @@ import { INCOME_CATEGORIES } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 
 // ---------------------------------------------------------------------------
-// Schema — รายรับที่บันทึกเอง (เช่น ค่าซ่อมมือถือ +2000)
-// เก็บในตาราง Expense โดยใช้ kind = INCOME เพื่อไม่ต้องสร้างตารางใหม่
+// Schema — รายรับที่บันทึกเอง (เช่น ค่าซ่อมมือถือ +2000, ต้นทุนค่าซ่อม)
+// เก็บในตาราง ManualIncome
 // ---------------------------------------------------------------------------
 
 const upsertIncomeSchema = z.object({
-  id: z.string().optional(), // มี id = แก้ไข
+  id: z.string().optional(),
   amount: z.coerce
-    .number({ message: "จำนวนเงินต้องเป็นตัวเลข" })
+    .number({ message: "จำนวนเงินรับต้องเป็นตัวเลข" })
     .int("จำนวนเงินต้องเป็นจำนวนเต็ม (บาท)")
     .min(1, "จำนวนเงินต้องมากกว่า 0"),
   category: z.enum(INCOME_CATEGORIES),
   description: z.string().trim().min(2, "กรอกรายละเอียดรายรับ"),
+  costPrice: z.coerce
+    .number({ message: "ต้นทุนต้องเป็นตัวเลข" })
+    .int("ต้นทุนต้องเป็นจำนวนเต็ม (บาท)")
+    .min(0, "ต้นทุนต้องไม่ติดลบ"),
 });
 
 export type UpsertIncomeInput = z.infer<typeof upsertIncomeSchema>;
@@ -40,28 +44,16 @@ export async function upsertIncome(
       error: parsed.error.issues[0]?.message ?? "ข้อมูลไม่ถูกต้อง",
     };
   }
-  const { id, amount, category, description } = parsed.data;
+  const { id, amount, category, description, costPrice } = parsed.data;
 
   try {
-    // แก้ไขได้เฉพาะรายรับที่บันทึกเอง (ห้ามแตะรายจ่ายที่ระบบสร้างจากสัญญา)
-    if (id) {
-      const existing = await db.expense.findUnique({ where: { id } });
-      if (!existing) return { ok: false, error: "ไม่พบรายการรายรับ" };
-      if (existing.kind !== "INCOME") {
-        return {
-          ok: false,
-          error: "แก้ไขได้เฉพาะรายรับที่บันทึกเองเท่านั้น",
-        };
-      }
-    }
-
     const entry = id
-      ? await db.expense.update({
+      ? await db.manualIncome.update({
           where: { id },
-          data: { amount, category, description },
+          data: { amount, category, description, costPrice },
         })
-      : await db.expense.create({
-          data: { amount, category, description, kind: "INCOME" },
+      : await db.manualIncome.create({
+          data: { amount, category, description, costPrice },
         });
 
     revalidatePath("/incomes");
@@ -86,18 +78,15 @@ export async function deleteIncome(
   await requireAuth();
 
   try {
-    const existing = await db.expense.findUnique({ where: { id: input.id } });
-    if (!existing) return { ok: false, error: "ไม่พบรายการรายรับ" };
-    if (existing.kind !== "INCOME") {
-      return { ok: false, error: "ลบได้เฉพาะรายรับที่บันทึกเองเท่านั้น" };
-    }
-
-    await db.expense.delete({ where: { id: input.id } });
+    await db.manualIncome.delete({ where: { id: input.id } });
     revalidatePath("/incomes");
     revalidatePath("/reports");
     revalidatePath("/");
     return { ok: true, deletedId: input.id };
   } catch (error) {
+    if (error instanceof Error && "code" in error && (error as any).code === "P2025") {
+      return { ok: false, error: "ไม่พบรายการรายรับ" };
+    }
     return {
       ok: false,
       error: error instanceof Error ? error.message : "ลบไม่สำเร็จ",

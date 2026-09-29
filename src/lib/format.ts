@@ -1,4 +1,4 @@
-import type { PawnStatus, PaymentMethod } from "@prisma/client";
+import type { ManualIncomeCategory, PawnStatus, PaymentMethod } from "@prisma/client";
 
 /** ข้อความบอกเงื่อนไขการแนบรูปสินค้า (ใช้หน้าเพิ่มสินค้า) */
 export const PRODUCT_IMAGE_UPLOAD_HINT =
@@ -54,12 +54,7 @@ export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   TRANSFER: "โอนเงิน",
 };
 
-/** ป้ายชื่อหมวดรายจ่าย */
-export const EXPENSE_CATEGORY_LABEL: Record<string, string> = {
-  PAWN_PRINCIPAL: "จ่ายเงินต้นรับจำนำ",
-};
-
-/** หมวดของรายรับที่บันทึกเอง (เก็บใน Expense.kind = INCOME) */
+/** หมวดของรายรับที่บันทึกเอง (เก็บใน ManualIncome.category) */
 export const INCOME_CATEGORIES = [
   "REPAIR",
   "SERVICE",
@@ -73,6 +68,34 @@ export const INCOME_CATEGORY_LABEL: Record<IncomeCategory, string> = {
   REPAIR: "ค่าซ่อม",
   SERVICE: "ค่าบริการ",
   COMMISSION: "คอมมิชชั่น",
+  OTHER: "อื่นๆ",
+};
+
+export const MANUAL_INCOME_CATEGORY_LABEL: Record<ManualIncomeCategory, string> = {
+  REPAIR: "ค่าซ่อม",
+  SERVICE: "ค่าบริการ",
+  COMMISSION: "คอมมิชชั่น",
+  OTHER: "อื่นๆ",
+};
+
+export const MANUAL_INCOME_CATEGORY_TONE: Record<ManualIncomeCategory, BadgeTone> = {
+  REPAIR: "teal",
+  SERVICE: "sky",
+  COMMISSION: "gold",
+  OTHER: "green",
+};
+
+export const EXPENSE_CATEGORIES = [
+  "PAWN_PRINCIPAL",
+  "REPAIR_COST",
+  "OTHER",
+] as const;
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+  PAWN_PRINCIPAL: "เงินต้นรับจำนำ",
+  REPAIR_COST: "ต้นทุนค่าซ่อม",
   OTHER: "อื่นๆ",
 };
 

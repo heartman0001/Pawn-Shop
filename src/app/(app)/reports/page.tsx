@@ -16,6 +16,8 @@ import type { PaymentMethod } from "@prisma/client";
 import { Badge, Button, Card, Input } from "@/components/ui";
 import { cn } from "@/components/ui";
 import { SaleItemsAccordion, type SaleItemRow } from "./sale-items-accordion";
+import { MANUAL_INCOME_CATEGORY_LABEL, MANUAL_INCOME_CATEGORY_TONE } from "@/lib/format";
+import { ManualIncomeCategory } from "@prisma/client";
 
 export const metadata = { title: "รายงานรายรับ — ร้านรับจำนำ POS" };
 
@@ -148,9 +150,9 @@ export default async function ReportsPage({
         contract: { select: { contractNumber: true, itemName: true } },
       },
     }),
-    // รายรับที่บันทึกเอง (เช่น ค่าซ่อมมือถือ) — Expense kind = INCOME
-    db.expense.findMany({
-      where: { createdAt: range, kind: "INCOME" },
+    // รายรับที่บันทึกเอง (เช่น ค่าซ่อมมือถือ) — เก็บใน ManualIncome
+    db.manualIncome.findMany({
+      where: { createdAt: range },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -184,9 +186,14 @@ export default async function ReportsPage({
   for (const e of expenses) expenseTotal += e.amount;
 
   let manualIncomeTotal = 0;
-  for (const e of manualIncomes) manualIncomeTotal += e.amount;
+  let manualIncomeCostTotal = 0;
+  for (const e of manualIncomes) {
+    manualIncomeTotal += e.amount;
+    manualIncomeCostTotal += e.costPrice;
+  }
 
   const grandTotal = posTotal + redeemTotal + renewTotal + manualIncomeTotal;
+  const grossProfitFromManualIncomes = manualIncomeTotal - manualIncomeCostTotal;
   const netTotal = grandTotal - expenseTotal;
 
   // ------------------------------------------------------------------
@@ -319,7 +326,7 @@ export default async function ReportsPage({
         <SummaryCard
           label="รายรับอื่นๆ"
           value={formatBaht(manualIncomeTotal)}
-          sub={manualIncomes.length > 0 ? `${manualIncomes.length} รายการ (เช่น ค่าซ่อม)` : "ไม่มีรายการ"}
+          sub={manualIncomes.length > 0 ? `${manualIncomes.length} รายการ · กำไรสุทธิ ${formatBaht(grossProfitFromManualIncomes)} (ต้นทุน ${formatBaht(manualIncomeCostTotal)})` : "ไม่มีรายการ"}
           accent="green"
         />
         <SummaryCard
@@ -418,13 +425,13 @@ export default async function ReportsPage({
         totalPages={incomeTotalPages}
         pageHref={(p) => pageHref("income", p)}
         mobile={
-          manualIncomes.length === 0 ? <EmptyCard /> : <IncomeCards rows={incomeRows} />
+          manualIncomes.length === 0 ? <EmptyCard /> : <ManualIncomeCards rows={incomeRows} />
         }
       >
         {manualIncomes.length === 0 ? (
           <EmptyRow />
         ) : (
-          <IncomeTableRows rows={incomeRows} />
+          <ManualIncomeTableRows rows={incomeRows} />
         )}
       </ReportSection>
 
@@ -825,72 +832,101 @@ function RedeemCards({
   );
 }
 
-// ---- ตารางรายรับอื่นๆ (บันทึกเอง) ----
-function IncomeTableRows({
+// ---- ตารางรายรับอื่นๆ (บันทึกเอง + มีต้นทุน) ----
+function ManualIncomeTableRows({
   rows,
 }: {
   rows: {
     id: string;
     createdAt: Date;
     amount: number;
-    category: string;
+    category: ManualIncomeCategory;
     description: string;
+    costPrice: number;
   }[];
 }) {
   return (
     <>
-      {rows.map((r) => (
-        <tr key={r.id} className="hover:bg-primary/5">
-          <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
-            {formatDateTime(r.createdAt)}
-          </td>
-          <td className="px-4 py-2.5 font-bold text-zinc-800">—</td>
-          <td className="px-4 py-2.5">
-            <p className="text-zinc-600">{r.description}</p>
-            <p className="text-xs text-zinc-400">
-              {INCOME_CATEGORY_LABEL[r.category as IncomeCategory] ?? r.category}
-            </p>
-          </td>
-          <td className="px-4 py-2.5">
-            <Badge tone="green" className="whitespace-nowrap">
-              รายรับ
-            </Badge>
-          </td>
-          <td className="px-4 py-2.5 text-right font-extrabold text-success">
-            +{formatBaht(r.amount)}
-          </td>
-        </tr>
-      ))}
+      {rows.map((r) => {
+        const profit = r.amount - r.costPrice;
+        return (
+          <tr key={r.id} className="hover:bg-primary/5">
+            <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
+              {formatDateTime(r.createdAt)}
+            </td>
+            <td className="px-4 py-2.5 font-bold text-zinc-800">—</td>
+            <td className="px-4 py-2.5">
+              <p className="text-zinc-600">{r.description}</p>
+              <p className="text-xs text-zinc-400">
+                {MANUAL_INCOME_CATEGORY_LABEL[r.category] ?? r.category}
+              </p>
+            </td>
+            <td className="px-4 py-2.5">
+              <Badge tone={MANUAL_INCOME_CATEGORY_TONE[r.category] ?? "green"} className="whitespace-nowrap">
+                รายรับ
+              </Badge>
+            </td>
+            <td className="whitespace-nowrap">
+              <div className="flex items-center justify-end gap-2">
+                <span className="font-extrabold text-success">+{formatBaht(r.amount)}</span>
+                {r.costPrice > 0 && (
+                  <span className="text-xs text-zinc-400">({formatBaht(r.costPrice)})</span>
+                )}
+              </div>
+            </td>
+            <td className="whitespace-nowrap px-4 py-2.5 text-right font-extrabold">
+              {profit >= 0 ? (
+                <span className="text-success">+{formatBaht(profit)}</span>
+              ) : (
+                <span className="text-error">{formatBaht(profit)}</span>
+              )}
+            </td>
+          </tr>
+        );
+      })}
     </>
   );
 }
 
 // ---- การ์ดรายรับอื่นๆ (mobile) ----
-function IncomeCards({
+function ManualIncomeCards({
   rows,
 }: {
-  rows: Parameters<typeof IncomeTableRows>[0]["rows"];
+  rows: Parameters<typeof ManualIncomeTableRows>[0]["rows"];
 }) {
   return (
     <>
-      {rows.map((r) => (
-        <ReportCard key={r.id}>
-          <div className="flex items-start justify-between gap-2">
-            <span className="font-bold text-primary-dark">{r.description}</span>
-            <span className="whitespace-nowrap font-extrabold text-success">
-              +{formatBaht(r.amount)}
-            </span>
-          </div>
-          <dl className="mt-3 space-y-1.5 text-sm">
-            <CardLine label="วัน/เวลา">
-              {formatDateTime(r.createdAt)}
-            </CardLine>
-            <CardLine label="หมวด">
-              {INCOME_CATEGORY_LABEL[r.category as IncomeCategory] ?? r.category}
-            </CardLine>
-          </dl>
-        </ReportCard>
-      ))}
+      {rows.map((r) => {
+        const profit = r.amount - r.costPrice;
+        return (
+          <ReportCard key={r.id}>
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-bold text-primary-dark">{r.description}</span>
+              <span className="whitespace-nowrap">
+                <span className="font-extrabold text-success">+{formatBaht(r.amount)}</span>
+                {r.costPrice > 0 && (
+                  <span className="text-xs text-zinc-400 ml-1">(ต้นทุน {formatBaht(r.costPrice)})</span>
+                )}
+              </span>
+            </div>
+            <dl className="mt-3 space-y-1.5 text-sm">
+              <CardLine label="วัน/เวลา">
+                {formatDateTime(r.createdAt)}
+              </CardLine>
+              <CardLine label="หมวด">
+                {MANUAL_INCOME_CATEGORY_LABEL[r.category] ?? r.category}
+              </CardLine>
+              <CardLine label="กำไร">
+                {profit >= 0 ? (
+                  <span className="text-success font-bold">+{formatBaht(profit)}</span>
+                ) : (
+                  <span className="text-error font-bold">{formatBaht(profit)}</span>
+                )}
+              </CardLine>
+            </dl>
+          </ReportCard>
+        );
+      })}
     </>
   );
 }

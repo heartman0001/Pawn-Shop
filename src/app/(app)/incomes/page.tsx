@@ -9,20 +9,23 @@ export const dynamic = "force-dynamic";
 export default async function IncomesPage() {
   await requireAuth();
 
-  // รายรับที่บันทึกเอง (เช่น ค่าซ่อมมือถือ) — เก็บใน Expense ด้วย kind = INCOME
-  const incomes = await db.expense.findMany({
-    where: { kind: "INCOME" },
+  const manualIncomes = await db.manualIncome.findMany({
     orderBy: { createdAt: "desc" },
     take: 500,
   });
 
-  const rows: IncomeRow[] = incomes.map((e) => ({
+  const incomeRows: IncomeRow[] = manualIncomes.map((e) => ({
     id: e.id,
     amount: e.amount,
+    costPrice: e.costPrice,
     category: e.category,
     description: e.description,
     createdAt: e.createdAt.toISOString(),
   }));
 
-  return <IncomesClient incomes={rows} />;
+  return (
+    <div className="space-y-6">
+      <IncomesClient incomes={incomeRows} />
+    </div>
+  );
 }
