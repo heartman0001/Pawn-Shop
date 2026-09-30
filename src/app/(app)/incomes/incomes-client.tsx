@@ -109,13 +109,14 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
             บันทึกรายรับอื่นๆ นอกเหนือจาก POS · ไถ่ถอน · ต่อดอก เช่น ค่าซ่อมมือถือ
           </p>
         </div>
-        <Button onClick={() => setModal({ mode: "add" })}>
-          <CirclePlus className="h-4 w-4" /> เพิ่มรายรับ
-        </Button>
       </div>
+      <Badge tone="green" className="h-9 px-4 text-sm">
+          <Wallet className="h-4 w-4" /> รวม {formatBaht(total)} · {filtered.length}{" "}
+          รายการ
+        </Badge>
 
       {/* Search + summary */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
           <Input
@@ -124,16 +125,16 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
             placeholder="ค้นหารายละเอียด / หมวด…"
             className="pl-9"
           />
-        </div>          <Badge tone="green" className="h-9 px-4 text-sm">
-          <Wallet className="h-4 w-4" /> รวม {formatBaht(total)} · {filtered.length}{" "}
-          รายการ
-        </Badge>
-        {total > 0 && (
+        </div>     
+        <Button onClick={() => setModal({ mode: "add" })}>
+          <CirclePlus className="h-4 w-4" /> เพิ่มรายรับ
+        </Button>     
+      </div>
+      {total > 0 && (
             <span className="text-xs text-zinc-400">
               กำไรสุทธิ {formatBaht(totalProfit)} (ต้นทุน {formatBaht(totalCost)})
             </span>
           )}
-      </div>
 
       {/* Error banner */}
       {errorBanner && (

@@ -30,12 +30,12 @@ export default async function CustomersPage() {
             ทั้งหมด {total} คน · มีสัญญา active อยู่ {withActive} คน
           </p>
         </div>
-        <Link href="/pawn/new">
-          <Button>
+      </div>
+      <Link href="/pawn/new">
+          <Button className="mb-4">
             <Plus className="h-4 w-4" /> รับจำนำใหม่
           </Button>
         </Link>
-      </div>
 
       <CustomerSearch
         customers={customers.map((c) => ({

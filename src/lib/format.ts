@@ -93,7 +93,8 @@ export const EXPENSE_CATEGORIES = [
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
-export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
+// Record<string, string> — Expense.category เก็บเป็น string ใน DB จึง index ด้วย string ได้
+export const EXPENSE_CATEGORY_LABEL: Record<string, string> = {
   PAWN_PRINCIPAL: "เงินต้นรับจำนำ",
   REPAIR_COST: "ต้นทุนค่าซ่อม",
   OTHER: "อื่นๆ",

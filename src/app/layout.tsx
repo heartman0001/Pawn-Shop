@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ร้านรับจำนำ — ระบบจัดการ & POS",
   description: "ระบบจัดการร้านจำนำและขายสินค้าหน้าร้าน (Single-User)",
+};
+
+// สำคัญ: ไม่มี meta viewport มือถือจะวัด layout กว้าง ~980px แล้วย่อภาพ
+// ทำให้ responsive breakpoint (hidden/lg:*) คำนวณผิดทั้งหมด
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

@@ -46,12 +46,12 @@ export default async function PawnsPage() {
             สัญญาจำนำทั้งหมด — ต่อดอกเบี้ย / ตัดหลุด / ไถ่ถอน
           </p>
         </div>
-        <Link href="/pawn/new">
-          <Button>
+      </div>
+      <Link href="/pawn/new">
+          <Button className="mb-4">
             <Plus className="h-4 w-4" /> สัญญาใหม่
           </Button>
         </Link>
-      </div>
 
       <PawnContractsClient contracts={dtos} />
     </div>

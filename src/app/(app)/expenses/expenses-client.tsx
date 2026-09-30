@@ -16,7 +16,6 @@ import {
   formatBaht,
   formatDateTime,
   EXPENSE_CATEGORY_LABEL,
-  EXPENSE_CATEGORY_FULL_LABEL,
 } from "@/lib/format";
 import type { ExpenseCategory } from "@/lib/format";
 import { Badge, Button, Field, Input, Select } from "@/components/ui";
@@ -102,13 +101,12 @@ export function ExpensesClient({ expenses }: { expenses: ExpenseRow[] }) {
             เงินต้นที่จ่ายตอนรับจำนำ · ค่าใช้จ่ายอื่นๆ
           </p>
         </div>
-        <Button onClick={openAddModal}>
-          <CirclePlus className="h-4 w-4" /> เพิ่มรายจ่าย
-        </Button>
       </div>
-
+      <Badge tone="red" className="h-9 px-4 text-sm">
+          รวม {formatBaht(total)} · {filtered.length} รายการ
+        </Badge>
       {/* Search + summary */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
           <Input
@@ -118,9 +116,9 @@ export function ExpensesClient({ expenses }: { expenses: ExpenseRow[] }) {
             className="pl-9"
           />
         </div>
-        <Badge tone="red" className="h-9 px-4 text-sm">
-          รวม {formatBaht(total)} · {filtered.length} รายการ
-        </Badge>
+        <Button onClick={openAddModal}>
+          <CirclePlus className="h-4 w-4" /> เพิ่มรายจ่าย
+        </Button>
       </div>
 
       {/* Error banner */}

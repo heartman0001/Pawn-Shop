@@ -4,9 +4,8 @@ import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/prisma";
 import type { ActionResult } from "@/app/actions/pawn";
+import { EXPENSE_CATEGORIES } from "@/lib/format";
 import { revalidatePath } from "next/cache";
-
-const EXPENSE_CATEGORIES = ["PAWN_PRINCIPAL", "OTHER"] as const;
 
 export type UpsertExpenseInput = {
   id?: string;
@@ -24,6 +23,7 @@ const upsertExpenseSchema = z.object({
     .min(1, "จำนวนเงินต้องมากกว่า 0"),
   category: z.enum(EXPENSE_CATEGORIES),
   description: z.string().trim().min(2, "กรอกรายละเอียดรายจ่าย"),
+  contractId: z.string().trim().optional(),
 });
 
 export async function upsertExpense(
