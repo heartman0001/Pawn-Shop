@@ -38,6 +38,9 @@ export const PAWN_STATUS_LABEL: Record<PawnStatus, string> = {
   SOLD: "ขายแล้ว",
 };
 
+/** ตัวกรองสถานะสัญญาในหน้ารายการ (รวม "ALL") */
+export type PawnStatusFilter = "ALL" | PawnStatus;
+
 export const PAWN_STATUS_TONE: Record<PawnStatus, BadgeTone> = {
   ACTIVE: "teal", // อยู่ระหว่างสัญญา = สถานะหลัก (teal)
   REDEEMED: "sky", // ไถ่ถอนแล้ว = ข้อมูล/สำเร็จ (sky)

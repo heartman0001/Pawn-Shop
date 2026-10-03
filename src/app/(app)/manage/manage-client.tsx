@@ -27,6 +27,8 @@ import {
 import { formatDateTime, PAWN_STATUS_LABEL, PAWN_STATUS_TONE } from "@/lib/format";
 import { Badge, Button, Field, Input } from "@/components/ui";
 import { cn } from "@/components/ui";
+import { PageSizeSelector } from "@/components/page-size-selector";
+import { usePageSize } from "@/lib/use-page-size";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,12 +66,15 @@ interface ContractRow {
 export function ManageClient({
   customers,
   contracts,
+  initialPageSize,
 }: {
   customers: CustomerRow[];
   contracts: ContractRow[];
+  initialPageSize: number;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"customers" | "items">("customers");
+  const [pageSize, setPageSize] = usePageSize(initialPageSize);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   // error banner — ไม่หายเอง ต้องกดปิด (กัน error หลุดตา)
@@ -166,6 +171,7 @@ export function ManageClient({
             เพิ่ม / แก้ไข / ลบ — ข้อมูลลูกค้า และ สินค้ารับจำนำ
           </p>
         </div>
+        <PageSizeSelector value={pageSize} onChange={setPageSize} />
       </div>
 
       {/* Tabs + search */}
@@ -230,6 +236,7 @@ export function ManageClient({
         <CustomerTable
           rows={filteredCustomers}
           search={search}
+          pageSize={pageSize}
           onEdit={(row) => setCustomerModal({ mode: "edit", row })}
           onDeleteAsk={(row) => setConfirmCustomerDelete(row)}
         />
@@ -240,6 +247,7 @@ export function ManageClient({
         <ItemTable
           rows={filteredItems}
           search={search}
+          pageSize={pageSize}
           onEdit={(row) => setItemModal({ mode: "edit", row })}
           onDeleteAsk={(row) => setConfirmItemDelete(row)}
         />
@@ -362,11 +370,8 @@ function TabBtn({
 
 // ---------------------------------------------------------------------------
 // Pagination — เลย์เอาต์เดียวกับ Pagination ของหน้า dashboard แต่เปลี่ยนหน้าฝั่ง client
-// desktop (ตาราง) 20 แถว/หน้า · mobile (การ์ด) 10 ใบ/หน้า
+// จำนวนต่อหน้าใช้ค่าร่วมจาก cookie (page_size)
 // ---------------------------------------------------------------------------
-
-const DESKTOP_PAGE_SIZE = 20;
-const MOBILE_PAGE_SIZE = 10;
 
 function Pagination({
   page,
@@ -418,35 +423,35 @@ function Pagination({
 function CustomerTable({
   rows,
   search,
+  pageSize,
   onEdit,
   onDeleteAsk,
 }: {
   rows: CustomerRow[];
   search: string;
+  pageSize: number;
   onEdit: (row: CustomerRow) => void;
   onDeleteAsk: (row: CustomerRow) => void;
 }) {
-  // pagination — เปลี่ยนหน้าฝั่ง client (desktop 20 แถว / mobile 10 การ์ด ต่อหน้า)
-  const [desktopPage, setDesktopPage] = useState(1);
-  const [mobilePage, setMobilePage] = useState(1);
-  const dTotalPages = Math.max(1, Math.ceil(rows.length / DESKTOP_PAGE_SIZE));
-  const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
-  const dPage = Math.min(desktopPage, dTotalPages);
-  const mPage = Math.min(mobilePage, mTotalPages);
-  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ (ปรับ state ตอน render)
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  // กันเลขหน้าเกินจริงเมื่อผลกรองลดลง
+  const currentPage = Math.min(page, totalPages);
+  // ค้นหาใหม่ → กลับหน้าแรก (ปรับ state ตอน render)
   const [prevSearch, setPrevSearch] = useState(search);
   if (prevSearch !== search) {
     setPrevSearch(search);
-    setDesktopPage(1);
-    setMobilePage(1);
+    setPage(1);
   }
-  const desktopRows = rows.slice(
-    (dPage - 1) * DESKTOP_PAGE_SIZE,
-    dPage * DESKTOP_PAGE_SIZE
-  );
-  const mobileRows = rows.slice(
-    (mPage - 1) * MOBILE_PAGE_SIZE,
-    mPage * MOBILE_PAGE_SIZE
+  // เปลี่ยนจำนวนต่อหน้า → กลับหน้าแรก
+  const [prevPageSize, setPrevPageSize] = useState(pageSize);
+  if (prevPageSize !== pageSize) {
+    setPrevPageSize(pageSize);
+    setPage(1);
+  }
+  const pagedRows = rows.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
   );
 
   return (
@@ -471,8 +476,7 @@ function CustomerTable({
                   {search ? `ไม่พบลูกค้า “${search}”` : "ยังไม่มีลูกค้า"}
                 </td>
               </tr>
-            )}
-            {desktopRows.map((c) => (
+            )}              {pagedRows.map((c) => (
               <tr key={c.id} className="hover:bg-primary/5">
                 <td className="px-4 py-2.5 font-bold text-zinc-800">
                   {c.fullName}
@@ -509,9 +513,9 @@ function CustomerTable({
       </div>
       <div className="hidden sm:block">
         <Pagination
-          page={dPage}
-          totalPages={dTotalPages}
-          onPageChange={setDesktopPage}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
         />
       </div>
 
@@ -521,8 +525,7 @@ function CustomerTable({
           <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
             {search ? `ไม่พบลูกค้า “${search}”` : "ยังไม่มีลูกค้า"}
           </div>
-        )}
-        {mobileRows.map((c) => (
+        )}          {pagedRows.map((c) => (
           <div
             key={c.id}
             className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
@@ -554,9 +557,9 @@ function CustomerTable({
       </div>
       <div className="sm:hidden">
         <Pagination
-          page={mPage}
-          totalPages={mTotalPages}
-          onPageChange={setMobilePage}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
         />
       </div>
     </div>
@@ -570,35 +573,35 @@ function CustomerTable({
 function ItemTable({
   rows,
   search,
+  pageSize,
   onEdit,
   onDeleteAsk,
 }: {
   rows: ContractRow[];
   search: string;
+  pageSize: number;
   onEdit: (row: ContractRow) => void;
   onDeleteAsk: (row: ContractRow) => void;
 }) {
-  // pagination — เปลี่ยนหน้าฝั่ง client (desktop 20 แถว / mobile 10 การ์ด ต่อหน้า)
-  const [desktopPage, setDesktopPage] = useState(1);
-  const [mobilePage, setMobilePage] = useState(1);
-  const dTotalPages = Math.max(1, Math.ceil(rows.length / DESKTOP_PAGE_SIZE));
-  const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
-  const dPage = Math.min(desktopPage, dTotalPages);
-  const mPage = Math.min(mobilePage, mTotalPages);
-  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ (ปรับ state ตอน render)
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  // กันเลขหน้าเกินจริงเมื่อผลกรองลดลง
+  const currentPage = Math.min(page, totalPages);
+  // ค้นหาใหม่ → กลับหน้าแรก (ปรับ state ตอน render)
   const [prevSearch, setPrevSearch] = useState(search);
   if (prevSearch !== search) {
     setPrevSearch(search);
-    setDesktopPage(1);
-    setMobilePage(1);
+    setPage(1);
   }
-  const desktopRows = rows.slice(
-    (dPage - 1) * DESKTOP_PAGE_SIZE,
-    dPage * DESKTOP_PAGE_SIZE
-  );
-  const mobileRows = rows.slice(
-    (mPage - 1) * MOBILE_PAGE_SIZE,
-    mPage * MOBILE_PAGE_SIZE
+  // เปลี่ยนจำนวนต่อหน้า → กลับหน้าแรก
+  const [prevPageSize, setPrevPageSize] = useState(pageSize);
+  if (prevPageSize !== pageSize) {
+    setPrevPageSize(pageSize);
+    setPage(1);
+  }
+  const pagedRows = rows.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
   );
 
   return (
@@ -624,8 +627,7 @@ function ItemTable({
                   {search ? `ไม่พบ “${search}”` : "ยังไม่มีสินค้ารับจำนำ"}
                 </td>
               </tr>
-            )}
-            {desktopRows.map((c) => (
+            )}              {pagedRows.map((c) => (
               <tr key={c.id} className="hover:bg-primary/5">
                 <td className="whitespace-nowrap px-4 py-2.5 font-bold text-zinc-800">
                   {c.contractNumber}
@@ -687,9 +689,9 @@ function ItemTable({
       </div>
       <div className="hidden sm:block">
         <Pagination
-          page={dPage}
-          totalPages={dTotalPages}
-          onPageChange={setDesktopPage}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
         />
       </div>
 
@@ -699,8 +701,7 @@ function ItemTable({
           <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
             {search ? `ไม่พบ “${search}”` : "ยังไม่มีสินค้ารับจำนำ"}
           </div>
-        )}
-        {mobileRows.map((c) => (
+        )}          {pagedRows.map((c) => (
           <div
             key={c.id}
             className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
@@ -749,9 +750,9 @@ function ItemTable({
       </div>
       <div className="sm:hidden">
         <Pagination
-          page={mPage}
-          totalPages={mTotalPages}
-          onPageChange={setMobilePage}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
         />
       </div>
     </div>

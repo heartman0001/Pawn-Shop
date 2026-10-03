@@ -1,11 +1,19 @@
+import { cookies } from "next/headers";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/prisma";
+import { PAGE_SIZE_COOKIE, parsePageSize } from "@/lib/page-size";
 import { ManageClient } from "./manage-client";
 
 export const metadata = { title: "จัดการข้อมูล — ร้านรับจำนำ POS" };
 
 export default async function ManagePage() {
   await requireAuth();
+
+  // จำนวนต่อหน้า: อ่านจาก cookie ร่วมกับหน้าอื่น
+  const cookieStore = await cookies();
+  const initialPageSize = parsePageSize(
+    cookieStore.get(PAGE_SIZE_COOKIE)?.value
+  );
 
   const [customers, contracts] = await Promise.all([
     db.customer.findMany({
@@ -22,6 +30,7 @@ export default async function ManagePage() {
 
   return (
     <ManageClient
+      initialPageSize={initialPageSize}
       customers={customers.map((c) => ({
         id: c.id,
         nationalId: c.nationalId,

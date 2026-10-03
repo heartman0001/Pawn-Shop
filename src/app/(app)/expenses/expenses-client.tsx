@@ -20,6 +20,8 @@ import {
 import type { ExpenseCategory } from "@/lib/format";
 import { Badge, Button, Field, Input, Select } from "@/components/ui";
 import { cn } from "@/components/ui";
+import { PageSizeSelector } from "@/components/page-size-selector";
+import { usePageSize } from "@/lib/use-page-size";
 
 export interface ExpenseRow {
   id: string;
@@ -32,8 +34,15 @@ export interface ExpenseRow {
   contractId: string | null;
 }
 
-export function ExpensesClient({ expenses }: { expenses: ExpenseRow[] }) {
+export function ExpensesClient({
+  expenses,
+  initialPageSize,
+}: {
+  expenses: ExpenseRow[];
+  initialPageSize: number;
+}) {
   const router = useRouter();
+  const [pageSize, setPageSize] = usePageSize(initialPageSize);
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<ExpenseRow[]>(expenses);
   const [modal, setModal] = useState<
@@ -116,6 +125,7 @@ export function ExpensesClient({ expenses }: { expenses: ExpenseRow[] }) {
             className="pl-9"
           />
         </div>
+        <PageSizeSelector value={pageSize} onChange={setPageSize} />
         <Button onClick={openAddModal}>
           <CirclePlus className="h-4 w-4" /> เพิ่มรายจ่าย
         </Button>
@@ -136,7 +146,13 @@ export function ExpensesClient({ expenses }: { expenses: ExpenseRow[] }) {
         </div>
       )}
 
-      <ExpenseTable rows={filtered} search={search} onEdit={(r) => setModal({ mode: "edit", row: r })} onDeleteAsk={(r) => setConfirmDelete(r)} />
+      <ExpenseTable
+        rows={filtered}
+        search={search}
+        pageSize={pageSize}
+        onEdit={(r) => setModal({ mode: "edit", row: r })}
+        onDeleteAsk={(r) => setConfirmDelete(r)}
+      />
 
       {/* Modal เพิ่ม/แก้ไข */}
       {modal && (
@@ -193,41 +209,37 @@ export function ExpensesClient({ expenses }: { expenses: ExpenseRow[] }) {
 // ตารางรายจ่าย — desktop table / mobile cards + pagination
 // ---------------------------------------------------------------------------
 
-const DESKTOP_PAGE_SIZE = 20;
-const MOBILE_PAGE_SIZE = 10;
-
 function ExpenseTable({
   rows,
   search,
+  pageSize,
   onEdit,
   onDeleteAsk,
 }: {
   rows: ExpenseRow[];
   search: string;
+  pageSize: number;
   onEdit: (row: ExpenseRow) => void;
   onDeleteAsk: (row: ExpenseRow) => void;
 }) {
-  const [desktopPage, setDesktopPage] = useState(1);
-  const [mobilePage, setMobilePage] = useState(1);
-  const dTotalPages = Math.max(1, Math.ceil(rows.length / DESKTOP_PAGE_SIZE));
-  const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
-  const dPage = Math.min(desktopPage, dTotalPages);
-  const mPage = Math.min(mobilePage, mTotalPages);
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
 
   const [prevSearch, setPrevSearch] = useState(search);
   if (prevSearch !== search) {
     setPrevSearch(search);
-    setDesktopPage(1);
-    setMobilePage(1);
+    setPage(1);
+  }
+  const [prevPageSize, setPrevPageSize] = useState(pageSize);
+  if (prevPageSize !== pageSize) {
+    setPrevPageSize(pageSize);
+    setPage(1);
   }
 
-  const desktopRows = rows.slice(
-    (dPage - 1) * DESKTOP_PAGE_SIZE,
-    dPage * DESKTOP_PAGE_SIZE
-  );
-  const mobileRows = rows.slice(
-    (mPage - 1) * MOBILE_PAGE_SIZE,
-    mPage * MOBILE_PAGE_SIZE
+  const pagedRows = rows.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
   );
 
   return (
@@ -252,7 +264,7 @@ function ExpenseTable({
                 </td>
               </tr>
             )}
-            {desktopRows.map((r) => (
+            {pagedRows.map((r) => (
               <tr key={r.id} className="hover:bg-primary/5">
                 <td className="whitespace-nowrap px-4 py-2.5 text-zinc-400">
                   {formatDateTime(r.createdAt)}
@@ -295,9 +307,9 @@ function ExpenseTable({
       </div>
       <div className="hidden sm:block">
         <Pagination
-          page={dPage}
-          totalPages={dTotalPages}
-          onPageChange={setDesktopPage}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
         />
       </div>
 
@@ -308,7 +320,7 @@ function ExpenseTable({
             {search ? `ไม่พบ "${search}"` : "ยังไม่มีรายจ่าย — กด “เพิ่มรายจ่าย” เพื่อเริ่ม"}
           </div>
         )}
-        {mobileRows.map((r) => (
+        {pagedRows.map((r) => (
           <div
             key={r.id}
             className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
@@ -343,9 +355,9 @@ function ExpenseTable({
       </div>
       <div className="sm:hidden">
         <Pagination
-          page={mPage}
-          totalPages={mTotalPages}
-          onPageChange={setMobilePage}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
         />
       </div>
     </div>

@@ -2,43 +2,40 @@
 
 /* eslint-disable @next/next/no-img-element -- รูปสิ่งของที่แนบตอนรับจำนำ */
 
-import { Fragment, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarClock,
   ChevronDown,
   ChevronRight,
   Filter,
-  Gavel,
-  HandCoins,
   Search,
 } from "lucide-react";
-import {
-  forfeitContract,
-  redeemContract,
-  renewInterest,
-} from "@/app/actions/pawn";
 import type { PawnContractDto } from "@/lib/dto";
 import {
   formatBaht,
   formatDate,
   PAWN_STATUS_LABEL,
   PAWN_STATUS_TONE,
-  PAYMENT_METHODS,
-  PAYMENT_METHOD_LABEL,
+  type PawnStatusFilter,
 } from "@/lib/format";
-import {
-  calcRedemption,
-  calcPeriodInterest,
-  PAWN_TERM_DAYS,
-} from "@/lib/pawn-math";
-import { Badge, Button, Field, Input } from "@/components/ui";
+import { Badge, Input, Select } from "@/components/ui";
 import { cn } from "@/components/ui";
+import { Pagination } from "@/components/pagination";
+import {
+  PAGE_SIZE_COOKIE,
+  PAGE_SIZE_COOKIE_MAX_AGE,
+} from "@/lib/page-size";
+import {
+  ActionButton,
+  ForfeitForm,
+  RedeemForm,
+  RenewForm,
+} from "./contract-action-forms";
 
-type StatusFilter = "ALL" | "ACTIVE" | "REDEEMED" | "FORFEITED" | "SOLD";
 type ExpandKey = `${string}:renew` | `${string}:forfeit` | `${string}:redeem`;
 
-const FILTERS: { key: StatusFilter; label: string }[] = [
+const FILTERS: { key: PawnStatusFilter; label: string }[] = [
   { key: "ALL", label: "ทั้งหมด" },
   { key: "ACTIVE", label: "จำนำอยู่" },
   { key: "FORFEITED", label: "หลุดจำนำ" },
@@ -46,31 +43,86 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "SOLD", label: "ขายแล้ว" },
 ];
 
+/** สร้าง URL ของหน้ารายการจากตัวกรอง/ค้นหา/หน้า (server-side pagination) */
+function pawnsHref({
+  status,
+  q,
+  page,
+  size,
+}: {
+  status: PawnStatusFilter;
+  q: string;
+  page: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  if (status !== "ALL") params.set("status", status);
+  if (q) params.set("q", q);
+  if (size) params.set("size", String(size));
+  if (page > 1) params.set("p", String(page));
+  const qs = params.toString();
+  return qs ? `/pawns?${qs}` : "/pawns";
+}
+
 export function PawnContractsClient({
   contracts,
+  page,
+  totalPages,
+  total,
+  status,
+  query,
+  pageSize,
+  pageSizeOptions,
 }: {
   contracts: PawnContractDto[];
+  page: number;
+  totalPages: number;
+  total: number;
+  status: PawnStatusFilter;
+  query: string;
+  pageSize: number;
+  pageSizeOptions: number[];
 }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<StatusFilter>("ALL");
-  const [search, setSearch] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expanded, setExpanded] = useState<ExpandKey | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return contracts.filter((c) => {
-      if (filter !== "ALL" && c.status !== filter) return false;
-      if (!q) return true;
-      return (
-        c.itemName.toLowerCase().includes(q) ||
-        c.customerName.toLowerCase().includes(q) ||
-        c.contractNumber.toLowerCase().includes(q) ||
-        c.serialNumber?.toLowerCase().includes(q)
-      );
-    });
-  }, [contracts, filter, search]);
+  // ช่องค้นหา: พิมพ์แล้ว debounce ค่อยอัปเดต URL (กรองที่ server)
+  const [searchInput, setSearchInput] = useState(query);
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    // URL เปลี่ยน (เช่นกด back) → sync กลับเข้าช่องค้นหา
+    setPrevQuery(query);
+    setSearchInput(query);
+  }
+  useEffect(() => {
+    const trimmed = searchInput.trim();
+    if (trimmed === query) return;
+    const timer = window.setTimeout(() => {
+      router.push(pawnsHref({ status, q: trimmed, page: 1, size: pageSize }));
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchInput, query, status, pageSize, router]);
+
+  // จำจำนวนต่อหน้าที่ใช้อยู่ไว้ใน cookie → ครั้งต่อไปเปิดหน้าโดยไม่มี ?size= จะใช้ค่านี้
+  useEffect(() => {
+    document.cookie = `${PAGE_SIZE_COOKIE}=${pageSize}; path=/; max-age=${PAGE_SIZE_COOKIE_MAX_AGE}; SameSite=Lax`;
+  }, [pageSize]);
+
+  function goStatus(next: PawnStatusFilter) {
+    setMobileMenuOpen(false);
+    router.push(pawnsHref({ status: next, q: query, page: 1, size: pageSize }));
+  }
+
+  function goPage(next: number) {
+    router.push(pawnsHref({ status, q: query, page: next, size: pageSize }));
+  }
+
+  function goSize(next: number) {
+    // เปลี่ยนจำนวนต่อหน้า → กลับหน้าแรก
+    router.push(pawnsHref({ status, q: query, page: 1, size: next }));
+  }
 
   const isOverdue = (c: PawnContractDto) =>
     c.status === "ACTIVE" && new Date(c.dueDate) < new Date();
@@ -97,8 +149,8 @@ export function PawnContractsClient({
           <div className="relative ml-auto w-full min-w-[220px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
             <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="ค้นหาสัญญา / ชื่อลูกค้า / สิ่งของ…"
               className="pl-9"
             />
@@ -113,13 +165,10 @@ export function PawnContractsClient({
                 {FILTERS.map((f) => (
                   <button
                     key={f.key}
-                    onClick={() => {
-                      setFilter(f.key);
-                      setMobileMenuOpen(false);
-                    }}
+                    onClick={() => goStatus(f.key)}
                     className={cn(
                       "w-full rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                      filter === f.key
+                      status === f.key
                         ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
                         : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
                     )}
@@ -137,10 +186,10 @@ export function PawnContractsClient({
           {FILTERS.map((f) => (
             <button
               key={f.key}
-              onClick={() => setFilter(f.key)}
+              onClick={() => goStatus(f.key)}
               className={cn(
                 "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors",
-                filter === f.key
+                status === f.key
                   ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
                   : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
               )}
@@ -151,8 +200,8 @@ export function PawnContractsClient({
           <div className="relative ml-auto w-auto min-w-[220px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
             <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="ค้นหาสัญญา / ชื่อลูกค้า / สิ่งของ…"
               className="pl-9"
             />
@@ -160,16 +209,35 @@ export function PawnContractsClient({
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-0">
+        <p className="text-xs text-zinc-400">พบทั้งหมด {total} สัญญา</p>
+        <label className="flex items-center gap-1.5 text-xs text-zinc-400">
+          แสดง
+          <Select
+            value={pageSize}
+            onChange={(e) => goSize(Number(e.target.value))}
+            className="h-8 w-16 px-2 text-xs"
+          >
+            {pageSizeOptions.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </Select>
+          ต่อหน้า
+        </label>
+      </div>
+
       {/* รายการสัญญา — mobile: card stack / desktop: table card */}
       <div className="md:overflow-hidden md:rounded-2xl md:border-2 md:border-primary/10 md:bg-surface-card md:shadow-card">
         {/* Mobile: card stack */}
         <div className="space-y-3 p-3 md:hidden">
-          {filtered.length === 0 && (
+          {contracts.length === 0 && (
             <p className="py-12 text-center text-sm text-zinc-400">
               ไม่พบสัญญาในเงื่อนไขนี้
             </p>
           )}
-          {filtered.map((c) => {
+          {contracts.map((c) => {
             const overdue = isOverdue(c);
             const rowKey =
               expanded?.split(":")[0] === c.id ? expanded : null;
@@ -327,7 +395,7 @@ export function PawnContractsClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {filtered.length === 0 && (
+              {contracts.length === 0 && (
                 <tr>
                   <td
                     colSpan={7}
@@ -337,7 +405,7 @@ export function PawnContractsClient({
                   </td>
                 </tr>
               )}
-              {filtered.map((c) => {
+              {contracts.map((c) => {
                 const overdue = isOverdue(c);
                 const rowKey =
                   expanded?.split(":")[0] === c.id ? expanded : null;
@@ -502,6 +570,12 @@ export function PawnContractsClient({
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={goPage}
+        />
       </div>
 
       {/* toast */}
@@ -510,376 +584,6 @@ export function PawnContractsClient({
           {toast}
         </div>
       )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Forms ย่อย
-// ---------------------------------------------------------------------------
-
-function ActionButton({
-  label,
-  onClick,
-  tone = "primary",
-}: {
-  label: string;
-  onClick: () => void;
-  tone?: "primary" | "success" | "danger";
-}) {
-  const tones = {
-    primary: "bg-primary/10 text-primary-dark hover:bg-primary/20",
-    success: "bg-success/10 text-success hover:bg-success/20",
-    danger: "bg-coral/10 text-coral-dark hover:bg-coral/20",
-  };
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-bold transition-colors",
-        tones[tone]
-      )}
-    >
-      {label}
-    </button>
-  );
-}
-
-
-function RenewForm({
-  contract,
-  onDone,
-}: {
-  contract: PawnContractDto;
-  onDone: (msg: string) => void;
-}) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]>("CASH");
-
-  // 1 งวด = 10 วัน (fix) — ดอกเบี้ยต่องวด (ตรงกับที่ Server คำนวณ)
-  const interest = calcPeriodInterest(
-    contract.principalAmount,
-    contract.interestRatePercent
-  );
-
-  function submit() {
-    setError(null);
-    startTransition(async () => {
-      const result = await renewInterest({
-        contractId: contract.id,
-        paymentMethod: method,
-      });
-      if (result.ok) {
-        onDone(
-          `ต่อดอกเบี้ย 10 วัน สำเร็จ — รับชำระ ${formatBaht(
-            result.interestDue
-          )} บาท (${PAYMENT_METHOD_LABEL[method]})`
-        );
-      } else {
-        setError(result.error);
-      }
-    });
-  }
-
-  return (
-    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-primary/20 bg-primary-bg px-4 py-4 sm:mx-0 sm:mb-0 sm:mt-0 sm:px-6">
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="text-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-primary/60">
-            ต่อดอกเบี้ย 1 รอบ = 10 วัน
-          </p>
-          <p className="font-semibold text-zinc-500">ดอกเบี้ยที่ต้องชำระ</p>
-          <p className="text-2xl font-extrabold text-accent-dark">
-            {formatBaht(interest)}
-          </p>
-          <p className="text-xs text-zinc-400">
-            ({contract.interestRatePercent}% ต่อ 10 วัน) ครบกำหนดใหม่{" "}
-            {formatDate(addDays(new Date(contract.dueDate), PAWN_TERM_DAYS))}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1">
-          {PAYMENT_METHODS.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMethod(m)}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
-                method === m
-                  ? "bg-primary text-white shadow-glow-teal"
-                  : "border-2 border-primary/15 bg-white text-zinc-500 hover:bg-primary/10"
-              )}
-            >
-              {PAYMENT_METHOD_LABEL[m]}
-            </button>
-          ))}
-        </div>
-        <Button
-          variant="primary"
-          className="ml-auto"
-          disabled={pending}
-          onClick={submit}
-        >
-          {pending ? "กำลังบันทึก…" : "ยืนยันต่อดอกเบี้ย (10 วัน)"}
-        </Button>
-      </div>
-      {error && <p className="mt-2 text-sm font-medium text-coral-dark">{error}</p>}
-    </div>
-  );
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function ForfeitForm({
-  contract,
-  onDone,
-}: {
-  contract: PawnContractDto;
-  onDone: (msg: string) => void;
-}) {
-  const [price, setPrice] = useState(String(contract.principalAmount));
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function submit() {
-    setError(null);
-    startTransition(async () => {
-      const result = await forfeitContract({
-        contractId: contract.id,
-        forfeitPrice: Number(price) > 0 ? Number(price) : null,
-      });
-      if (result.ok) {
-        onDone("ตัดหลุดจำนำแล้ว — ของจะไปโผล่ในหน้าขาย (POS)");
-      } else {
-        setError(result.error);
-      }
-    });
-  }
-
-  return (
-    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-coral/30 bg-coral/5 px-4 py-4 sm:mx-0 sm:mb-0 sm:mt-0 sm:px-6">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="max-w-sm text-sm text-zinc-600">
-          <p className="font-extrabold text-coral-dark">ตัดหลุดจำนำ?</p>
-          <p className="text-xs font-medium">
-            สัญญานี้จะกลายเป็น “ของหลุดจำนำ” และพร้อมขายในหน้าร้านทันที
-          </p>
-        </div>
-        <Field label="ราคาที่ตั้งขาย (บาท)" required>
-          <Input
-            type="number"
-            min={1}
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            className="w-36"
-          />
-        </Field>
-        <Button
-          variant="danger"
-          className="ml-auto"
-          disabled={pending}
-          onClick={submit}
-        >
-          <Gavel className="h-4 w-4" />
-          {pending ? "กำลังดำเนินการ…" : "ยืนยันตัดหลุด"}
-        </Button>
-      </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-    </div>
-  );
-}
-
-function RedeemForm({
-  contract,
-  onDone,
-}: {
-  contract: PawnContractDto;
-  onDone: (msg: string) => void;
-}) {
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]>("CASH");
-  const [received, setReceived] = useState("");
-
-  // คำนวณเหมือน Server Action (Fixed Cycle): งวดนับจากวันเริ่มสัญญา ขั้นต่ำ 1 งวด
-  // หักงวดที่จ่ายไปแล้วตอนต่อดอก (renewalCount) เพื่อไม่เก็บซ้ำ
-  const dueDate = new Date(contract.dueDate);
-  const calc = calcRedemption({
-    principal: contract.principalAmount,
-    interestRatePercent: contract.interestRatePercent,
-    cycleDays: PAWN_TERM_DAYS,
-    startDate: new Date(contract.startDate),
-    redemptionDate: new Date(),
-    paidCycles: contract.renewalCount,
-  });
-  const rounds = calc.dueCycles; // งวดที่ต้องชำระ (หลังหักที่ต่อดอกไปแล้ว)
-  const interestDue = calc.totalInterest;
-  const total = calc.totalAmount;
-  const receivedAmount = received === "" ? total : Number(received);
-  const change = method === "CASH" ? Math.max(receivedAmount - total, 0) : 0;
-  const enoughCash = method !== "CASH" || receivedAmount >= total;
-
-  function submit() {
-    if (!enoughCash) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await redeemContract({
-        contractId: contract.id,
-        paymentMethod: method,
-        receivedAmount: method === "CASH" ? receivedAmount : null,
-      });
-      if (result.ok) {
-        onDone(
-          `ไถ่ถอนสำเร็จ — รับชำระ ${formatBaht(result.totalAmount)} ` +
-            `(เงินต้น ${formatBaht(contract.principalAmount)}` +
-            (result.interestDue > 0
-              ? ` + ดอกเบี้ยค้าง ${formatBaht(result.interestDue)})`
-              : `)`) +
-            (result.changeAmount > 0
-              ? ` เงินทอน ${formatBaht(result.changeAmount)}`
-              : "")
-        );
-      } else {
-        setError(result.error);
-      }
-    });
-  }
-
-  return (
-    <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-success/30 bg-success/5 px-4 py-4 sm:mx-0 sm:mb-0 sm:mt-0 sm:px-6">
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
-        <div className="flex items-center gap-2">
-          <HandCoins className="h-5 w-5 text-success" />
-          <div>
-            <p className="font-extrabold text-success">
-              ไถ่ถอน — คืนสิ่งของให้ลูกค้า
-            </p>
-            <p className="text-xs font-medium text-zinc-500">
-              เริ่มสัญญา {formatDate(new Date(contract.startDate))} · ครบกำหนด{" "}
-              {formatDate(dueDate)} · ผ่านมาแล้ว {calc.daysElapsed} วัน —
-              คิดดอกเบี้ย {calc.totalCycles} งวด (รอบละ {PAWN_TERM_DAYS} วัน)
-              {contract.renewalCount > 0 &&
-                ` · หักที่ต่อดอกไปแล้ว ${contract.renewalCount} งวด`}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ยอดสรุป */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <RedeemSummary
-          label="เงินต้น"
-          value={formatBaht(contract.principalAmount)}
-        />
-        <RedeemSummary
-          label={`ดอกเบี้ยค้าง (${rounds} รอบ)`}
-          value={formatBaht(interestDue)}
-          hint={`${contract.interestRatePercent}% ต่อ 10 วัน`}
-        />
-        <RedeemSummary
-          label="ยอดที่ต้องชำระ"
-          value={formatBaht(total)}
-          accent
-        />
-      </div>
-
-      {/* วิธีชำระ + เงินสด */}
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <div className="flex items-center gap-1">
-          {PAYMENT_METHODS.map((m) => (
-            <button
-              key={m}
-              onClick={() => setMethod(m)}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
-                method === m
-                  ? "bg-primary text-white shadow-glow-teal"
-                  : "border-2 border-primary/15 bg-white text-zinc-500 hover:bg-primary/10"
-              )}
-            >
-              {PAYMENT_METHOD_LABEL[m]}
-            </button>
-          ))}
-        </div>
-        {/* {method === "CASH" && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-zinc-500">รับเงิน:</span>
-            {[total, 1000].map((amt) => (
-              <button
-                key={amt}
-                onClick={() => setReceived(String(amt))}
-                className="rounded-full border border-primary/20 bg-white px-2.5 py-1 text-xs font-bold text-primary-dark hover:bg-primary/10"
-              >
-                {formatBaht(amt)}
-              </button>
-            ))}
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={received}
-              onChange={(e) => setReceived(e.target.value)}
-              placeholder="จำนวนเงิน"
-              className="h-8 w-28 rounded-full border-2 border-primary/20 bg-white px-3 text-right text-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
-            />
-            <span className="text-sm">
-              เงินทอน{" "}
-              <b className={change >= 0 ? "text-success" : "text-error"}>
-                {formatBaht(change)}
-              </b>
-            </span>
-          </div>
-        )} */}
-        <Button
-          variant="success"
-          className="ml-auto"
-          disabled={pending || !enoughCash}
-          onClick={submit}
-        >
-          {pending ? "กำลังบันทึก…" : `ยืนยันไถ่ถอน ${formatBaht(total)}`}
-        </Button>
-      </div>
-      {error && (
-        <p className="mt-2 text-sm font-medium text-coral-dark">{error}</p>
-      )}
-    </div>
-  );
-}
-
-function RedeemSummary({
-  label,
-  value,
-  hint,
-  accent,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border px-3 py-2",
-        accent ? "border-accent/30 bg-cream" : "border-primary/15 bg-white"
-      )}
-    >
-      <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-        {label}
-      </p>
-      <p
-        className={cn(
-          "text-lg font-extrabold",
-          accent ? "text-accent-dark" : "text-zinc-800"
-        )}
-      >
-        {value}
-      </p>
-      {hint && <p className="text-[11px] text-zinc-400">{hint}</p>}
     </div>
   );
 }

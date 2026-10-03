@@ -25,6 +25,7 @@ import { PRODUCT_CATEGORIES } from "@/lib/categories";
 import { formatBaht } from "@/lib/format";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABEL } from "@/lib/format";
 import { cn } from "@/components/ui";
+import { Pagination } from "@/components/pagination";
 import { usePosCart } from "@/lib/pos-store";
 
 type Payment = "CASH" | "QR" | "CARD" | "TRANSFER";
@@ -82,6 +83,35 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
       matches(p.contractNumber)
     );
   });
+
+  // pagination — แบ่งหน้าแบบรวม (ของหลุดจำนำ + สินค้า) แล้วจัดกลุ่มตามหมวดในแต่ละหน้า
+  const SHELF_PAGE_SIZE = 24;
+  const shelfItems = [
+    ...visiblePawns.map((pawn) => ({ kind: "pawn" as const, pawn })),
+    ...visibleProducts.map((product) => ({ kind: "product" as const, product })),
+  ];
+  const shelfTotalPages = Math.max(
+    1,
+    Math.ceil(shelfItems.length / SHELF_PAGE_SIZE)
+  );
+  const [shelfPage, setShelfPage] = useState(1);
+  const shelfCurrent = Math.min(shelfPage, shelfTotalPages);
+  const pageItems = shelfItems.slice(
+    (shelfCurrent - 1) * SHELF_PAGE_SIZE,
+    shelfCurrent * SHELF_PAGE_SIZE
+  );
+  const pagePawns = pageItems.flatMap((i) =>
+    i.kind === "pawn" ? [i.pawn] : []
+  );
+  const pageProducts = pageItems.flatMap((i) =>
+    i.kind === "product" ? [i.product] : []
+  );
+  // ค้นหา/เปลี่ยนหมวด → กลับหน้าแรก (ปรับ state ตอน render)
+  const [prevShelfKey, setPrevShelfKey] = useState(`${search}|${chip}`);
+  if (prevShelfKey !== `${search}|${chip}`) {
+    setPrevShelfKey(`${search}|${chip}`);
+    setShelfPage(1);
+  }
 
   const total = items.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
   const receivedAmount = received === "" ? total : Number(received);
@@ -185,57 +215,53 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
 
         {/* กริดสินค้า */}
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-24 pr-1 lg:pb-2">
-          {(chip === "all" || chip === "pawn") && (
+          {pagePawns.length > 0 && (
             <ProductSection
               title={`ของหลุดจำนำ (${visiblePawns.length})`}
               empty="ยังไม่มีของหลุดจำนำ"
             >
-              {visiblePawns.map((p) => (
+              {pagePawns.map((p) => (
                 <PawnCard key={p.id} pawn={p} onAdd={() => addPawn(p)} />
               ))}
             </ProductSection>
           )}
-          {(chip === "all" || chip === "products" || categories.includes(chip)) &&
-            categories
-              .filter((c) => chip === "all" || chip === "products" || chip === c)
-              .map((category) => {
-                const list = visibleProducts.filter(
-                  (p) => p.category === category
-                );
-                if (list.length === 0) return null;
-                return (
-                  <ProductSection
-                    key={category}
-                    title={`${category} (${list.length})`}
-                    empty="ไม่มีสินค้าในหมวดนี้"
-                  >
-                    {list.map((p) => (
-                      <ProductCard
-                        key={p.id}
-                        product={p}
-                        inCartQty={
-                          items.find(
-                            (i) => i.kind === "product" && i.id === p.id
-                          )?.qty ?? 0
-                        }
-                        onAdd={() => addProduct(p)}
-                      />
-                    ))}
-                  </ProductSection>
-                );
-              })}
-          {visiblePawns.length === 0 &&
-            products.filter(
-              (p) =>
-                (chip === "all" ||
-                  chip === "products" ||
-                  chip === p.category) &&
-                (!q || matches(p.name) || matches(p.category))
-            ).length === 0 && (
-              <div className="rounded-xl border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-400">
-                ไม่พบสินค้าที่ค้นหา “{search}”
-              </div>
-            )}
+          {categories.map((category) => {
+            const list = pageProducts.filter((p) => p.category === category);
+            if (list.length === 0) return null;
+            const totalInCategory = visibleProducts.filter(
+              (p) => p.category === category
+            ).length;
+            return (
+              <ProductSection
+                key={category}
+                title={`${category} (${totalInCategory})`}
+                empty="ไม่มีสินค้าในหมวดนี้"
+              >
+                {list.map((p) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    inCartQty={
+                      items.find(
+                        (i) => i.kind === "product" && i.id === p.id
+                      )?.qty ?? 0
+                    }
+                    onAdd={() => addProduct(p)}
+                  />
+                ))}
+              </ProductSection>
+            );
+          })}
+          {shelfItems.length === 0 && (
+            <div className="rounded-xl border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-400">
+              ไม่พบสินค้าที่ค้นหา “{search}”
+            </div>
+          )}
+          <Pagination
+            page={shelfCurrent}
+            totalPages={shelfTotalPages}
+            onPageChange={setShelfPage}
+          />
         </div>
 
         {/* ปุ่มลอยเปิดตะกร้า (เฉพาะจอมือถือ) */}

@@ -41,14 +41,37 @@ export async function upsertExpense(
   const { id, amount, category, description, contractId } = parsed.data;
 
   try {
-    // เลือกไม่เชื่อม FK ก็ได้ — contractId ยังคงเก็บเป็น string ใน DB
+    // แปลงค่าที่กรอก (id หรือเลขที่สัญญาเช่น PC-20260904-001) → id จริงของสัญญา
+    let resolvedContractId: string | null = null;
+    if (contractId) {
+      const contract = await db.pawnContract.findFirst({
+        where: {
+          OR: [{ id: contractId }, { contractNumber: contractId }],
+        },
+        select: { id: true },
+      });
+      if (!contract) {
+        return {
+          ok: false,
+          error: `ไม่พบสัญญาเลขที่ "${contractId}" — ตรวจสอบเลขที่สัญญาอีกครั้ง`,
+        };
+      }
+      resolvedContractId = contract.id;
+    }
+
+    // contractId: null = ยกเลิกการผูกสัญญา (ไม่ส่ง = คงค่าเดิมไว้)
     const entry = id
       ? await db.expense.update({
           where: { id },
-          data: { amount, category, description, contractId: contractId ?? undefined },
+          data: {
+            amount,
+            category,
+            description,
+            contractId: contractId === undefined ? undefined : resolvedContractId,
+          },
         })
       : await db.expense.create({
-          data: { amount, category, description, contractId: contractId ?? undefined },
+          data: { amount, category, description, contractId: resolvedContractId },
         });
 
     revalidatePath("/expenses");
@@ -77,7 +100,11 @@ export async function deleteExpense(
     revalidatePath("/");
     return { ok: true, deletedId: input.id };
   } catch (error) {
-    if (error instanceof Error && "code" in error && (error as any).code === "P2025") {
+    const prismaCode =
+      error instanceof Error && "code" in error
+        ? String((error as { code?: unknown }).code)
+        : undefined;
+    if (prismaCode === "P2025") {
       return { ok: false, error: "ไม่พบรายการรายจ่าย" };
     }
     return {

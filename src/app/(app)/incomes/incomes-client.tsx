@@ -21,6 +21,8 @@ import {
 import type { IncomeCategory } from "@/lib/format";
 import { Badge, Button, Field, Input, Select } from "@/components/ui";
 import { cn } from "@/components/ui";
+import { PageSizeSelector } from "@/components/page-size-selector";
+import { usePageSize } from "@/lib/use-page-size";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,8 +41,15 @@ export interface IncomeRow {
 // Main
 // ---------------------------------------------------------------------------
 
-export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
+export function IncomesClient({
+  incomes,
+  initialPageSize,
+}: {
+  incomes: IncomeRow[];
+  initialPageSize: number;
+}) {
   const router = useRouter();
+  const [pageSize, setPageSize] = usePageSize(initialPageSize);
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<IncomeRow[]>(incomes);
   const [modal, setModal] = useState<
@@ -126,6 +135,7 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
             className="pl-9"
           />
         </div>     
+        <PageSizeSelector value={pageSize} onChange={setPageSize} />
         <Button onClick={() => setModal({ mode: "add" })}>
           <CirclePlus className="h-4 w-4" /> เพิ่มรายรับ
         </Button>     
@@ -151,7 +161,13 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
         </div>
       )}
 
-      <IncomeTable rows={filtered} search={search} onEdit={(row) => setModal({ mode: "edit", row })} onDeleteAsk={(row) => setConfirmDelete(row)} />
+      <IncomeTable
+        rows={filtered}
+        search={search}
+        pageSize={pageSize}
+        onEdit={(row) => setModal({ mode: "edit", row })}
+        onDeleteAsk={(row) => setConfirmDelete(row)}
+      />
 
       {/* Modal เพิ่ม/แก้ไข */}
       {modal && (
@@ -208,41 +224,36 @@ export function IncomesClient({ incomes }: { incomes: IncomeRow[] }) {
 // ตารางรายรับ — desktop table / mobile cards + pagination (desktop 20 / mobile 10)
 // ---------------------------------------------------------------------------
 
-const DESKTOP_PAGE_SIZE = 20;
-const MOBILE_PAGE_SIZE = 10;
-
 function IncomeTable({
   rows,
   search,
+  pageSize,
   onEdit,
   onDeleteAsk,
 }: {
   rows: IncomeRow[];
   search: string;
+  pageSize: number;
   onEdit: (row: IncomeRow) => void;
   onDeleteAsk: (row: IncomeRow) => void;
 }) {
-  // pagination — เปลี่ยนหน้าฝั่ง client (desktop 20 แถว / mobile 10 การ์ด ต่อหน้า)
-  const [desktopPage, setDesktopPage] = useState(1);
-  const [mobilePage, setMobilePage] = useState(1);
-  const dTotalPages = Math.max(1, Math.ceil(rows.length / DESKTOP_PAGE_SIZE));
-  const mTotalPages = Math.max(1, Math.ceil(rows.length / MOBILE_PAGE_SIZE));
-  const dPage = Math.min(desktopPage, dTotalPages);
-  const mPage = Math.min(mobilePage, mTotalPages);
-  // ค้นหาใหม่ → กลับไปหน้าแรกทั้งสองแบบ (ปรับ state ตอน render)
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  // ค้นหาใหม่ → กลับหน้าแรก (ปรับ state ตอน render)
   const [prevSearch, setPrevSearch] = useState(search);
   if (prevSearch !== search) {
     setPrevSearch(search);
-    setDesktopPage(1);
-    setMobilePage(1);
+    setPage(1);
   }
-  const desktopRows = rows.slice(
-    (dPage - 1) * DESKTOP_PAGE_SIZE,
-    dPage * DESKTOP_PAGE_SIZE
-  );
-  const mobileRows = rows.slice(
-    (mPage - 1) * MOBILE_PAGE_SIZE,
-    mPage * MOBILE_PAGE_SIZE
+  const [prevPageSize, setPrevPageSize] = useState(pageSize);
+  if (prevPageSize !== pageSize) {
+    setPrevPageSize(pageSize);
+    setPage(1);
+  }
+  const pagedRows = rows.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
   );
 
   return (
@@ -267,7 +278,7 @@ function IncomeTable({
                 </td>
               </tr>
             )}
-            {desktopRows.map((r) => (
+            {pagedRows.map((r) => (
               <tr key={r.id} className="hover:bg-primary/5">
                 <td className="whitespace-nowrap px-4 py-2.5 text-zinc-400">
                   {formatDateTime(r.createdAt)}
@@ -310,9 +321,9 @@ function IncomeTable({
       </div>
       <div className="hidden sm:block">
         <Pagination
-          page={dPage}
-          totalPages={dTotalPages}
-          onPageChange={setDesktopPage}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
         />
       </div>
 
@@ -323,7 +334,7 @@ function IncomeTable({
             {search ? `ไม่พบ “${search}”` : "ยังไม่มีรายรับ — กด “เพิ่มรายรับ” เพื่อเริ่ม"}
           </div>
         )}
-        {mobileRows.map((r) => (
+        {pagedRows.map((r) => (
           <div
             key={r.id}
             className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
@@ -361,9 +372,9 @@ function IncomeTable({
       </div>
       <div className="sm:hidden">
         <Pagination
-          page={mPage}
-          totalPages={mTotalPages}
-          onPageChange={setMobilePage}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
         />
       </div>
     </div>

@@ -18,6 +18,9 @@ import { PRODUCT_CATEGORIES, categoryRank } from "@/lib/categories";
 import { formatBaht, PRODUCT_IMAGE_UPLOAD_HINT } from "@/lib/format";
 import { Badge, Button, Field, Input, Select } from "@/components/ui";
 import { cn } from "@/components/ui";
+import { Pagination } from "@/components/pagination";
+import { PageSizeSelector } from "@/components/page-size-selector";
+import { usePageSize } from "@/lib/use-page-size";
 
 interface ProductRow {
   id: string;
@@ -39,7 +42,13 @@ const emptyForm = {
   minQuantity: "0",
 };
 
-export function ProductsManager({ products }: { products: ProductRow[] }) {
+export function ProductsManager({
+  products,
+  initialPageSize,
+}: {
+  products: ProductRow[];
+  initialPageSize: number;
+}) {
   const router = useRouter();
   const [form, setForm] = useState(emptyForm);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -57,6 +66,22 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
       categoryRank(a.category) - categoryRank(b.category) ||
       a.name.localeCompare(b.name, "th")
   );
+
+  // pagination — client-side, จำนวนต่อหน้าจำไว้ใน cookie ร่วมกับหน้าอื่น
+  const [pageSize, setPageSize] = usePageSize(initialPageSize);
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / pageSize));
+  // กันเลขหน้าเกินจริงเมื่อจำนวนสินค้าลดลง
+  const currentPage = Math.min(page, totalPages);
+  const pagedProducts = sortedProducts.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  function changePageSize(next: number) {
+    setPageSize(next);
+    setPage(1);
+  }
 
   // ล้าง object URL ตอนเปลี่ยน/เลิกใช้รูป
   useEffect(() => {
@@ -284,6 +309,14 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
         </div>
       </div>
 
+      {/* จำนวนต่อหน้า (จำใน cookie ร่วมกับหน้าอื่น) */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-zinc-500">
+          สินค้าทั้งหมด {products.length} รายการ
+        </p>
+        <PageSizeSelector value={pageSize} onChange={changePageSize} />
+      </div>
+
       {/* ตารางสินค้า — mobile: card / desktop: table */}
       <div className="overflow-x-auto rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
         {/* Desktop: table */}
@@ -307,7 +340,7 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
                   </td>
                 </tr>
               )}
-              {sortedProducts.map((p) => (
+              {pagedProducts.map((p) => (
                 <tr key={p.id} className="hover:bg-primary/5">
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2.5">
@@ -431,7 +464,7 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
               ยังไม่มีสินค้า — เพิ่มสินค้าแรกด้านบน
             </div>
           )}
-          {sortedProducts.map((p) => (
+          {pagedProducts.map((p) => (
             <div
               key={p.id}
               className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
@@ -558,6 +591,11 @@ export function ProductsManager({ products }: { products: ProductRow[] }) {
             </div>
           ))}
         </div>
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );
