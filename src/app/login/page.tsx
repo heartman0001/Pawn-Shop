@@ -11,24 +11,27 @@ export default async function LoginPage() {
   if (session) redirect("/"); // ล็อกอินแล้ว (proxy ก็กันไว้แล้ว แต่กันซ้ำเพื่อความชัวร์)
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-primary-bg via-surface-base to-cream px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-primary-bg to-cream px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-b from-accent-light to-accent shadow-glow-gold">
+          <span className="mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-b from-accent-light to-accent shadow-glow-gold ring-4 ring-white/70">
             <img
               src="/favicon.ico"
               alt="โลโก้ร้าน"
               className="h-full w-full object-cover"
             />
           </span>
-          <h1 className="text-2xl font-extrabold tracking-tight text-primary-dark">
+          <h1 className="text-[1.6rem] font-extrabold leading-tight tracking-tight text-primary-dark">
             ระบบจัดการร้านรับจำนำ
           </h1>
-          <p className="mt-1.5 text-sm font-medium text-zinc-500">
-            เข้าสู่ระบบเพื่อใช้งาน (Password / PIN จากไฟล์ .env)
+          <p className="mt-1.5 text-sm font-medium text-zinc-600">
+            เข้าสู่ระบบเพื่อใช้งาน — รหัสผ่าน / PIN ตั้งไว้ในไฟล์ .env
           </p>
         </div>
         <LoginForm />
+        <p className="mt-4 text-center text-xs font-medium text-zinc-500">
+          ใช้ในร้านเท่านั้น · ข้อมูลลูกค้าอยู่ในเครื่องนี้
+        </p>
       </div>
     </div>
   );

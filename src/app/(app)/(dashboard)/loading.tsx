@@ -19,13 +19,13 @@ export default function Loading() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-2xl border border-primary/20 border-l-8 border-l-primary/30 bg-surface-card p-4 shadow-card"
+            className="rounded-2xl border border-primary/20 bg-surface-card p-4 shadow-card"
           >
-            <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded-full bg-primary/15" />
-              <div className="h-3 w-24 rounded-full bg-primary/10" />
+            <div className="flex items-start gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-primary/10" />
+              <div className="mt-1.5 h-3 w-20 rounded-full bg-primary/10" />
             </div>
-            <div className="mt-3 h-7 w-24 rounded-full bg-primary/10" />
+            <div className="mt-3 h-8 w-24 rounded-full bg-primary/10" />
             <div className="mt-2 h-3 w-28 max-w-full rounded-full bg-primary/5" />
           </div>
         ))}
@@ -44,7 +44,7 @@ export default function Loading() {
             </div>
             <div className="space-y-3 p-4">
               {Array.from({ length: 5 }).map((_, j) => (
-                <div key={j} className="h-8 rounded-xl bg-primary/5" />
+                <div key={j} className="h-9 rounded-xl bg-primary/5" />
               ))}
             </div>
           </div>

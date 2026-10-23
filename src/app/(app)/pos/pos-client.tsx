@@ -178,12 +178,15 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] flex-col lg:flex-row lg:gap-4 max-lg:h-[calc(100dvh-8.5rem)]">
+    <div className="flex min-h-0 flex-1 flex-col md:flex-row md:gap-4">
+      {/* ชื่อหน้าสำหรับ screen reader — หน้านี้ไม่แสดงหัวข้อเพื่อใช้พื้นที่เต็มจอ */}
+      <h1 className="sr-only">ขายหน้าร้าน (POS)</h1>
+
       {/* ------- ฝั่งซ้าย: ค้นหา + ชิปหมวด + กริดสินค้า ------- */}
       <div
         className={cn(
           "relative flex min-h-0 min-w-0 flex-1 flex-col",
-          !isShelf && "max-lg:hidden"
+          !isShelf && "max-md:hidden"
         )}
       >
         <div className="mb-3 flex items-center gap-2">
@@ -193,7 +196,7 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="ค้นหาชื่อสินค้า / หมวดหมู่ / ชื่อลูกค้า / เลขสัญญา…"
-              className="h-11 w-full rounded-full border-2 border-primary/20 bg-cream pl-9 pr-4 text-sm text-zinc-800 shadow-card placeholder:text-zinc-400 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
+              className="h-11 w-full rounded-full border-2 border-primary/20 bg-cream pl-9 pr-4 text-sm text-zinc-800 shadow-card placeholder:text-zinc-500 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15"
             />
           </div>
         </div>
@@ -214,7 +217,7 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
         </div>
 
         {/* กริดสินค้า */}
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-24 pr-1 lg:pb-2">
+        <div className="@container min-h-0 flex-1 space-y-4 overflow-y-auto pb-24 pr-1 md:pb-2">
           {pagePawns.length > 0 && (
             <ProductSection
               title={`ของหลุดจำนำ (${visiblePawns.length})`}
@@ -253,8 +256,10 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
             );
           })}
           {shelfItems.length === 0 && (
-            <div className="rounded-xl border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-400">
-              ไม่พบสินค้าที่ค้นหา “{search}”
+            <div className="rounded-2xl border-2 border-dashed border-primary/20 bg-surface-card/60 px-5 py-16 text-center text-sm font-medium text-zinc-600">
+              {search
+                ? `ไม่พบสินค้าที่ค้นหา “${search}”`
+                : "ยังไม่มีสินค้าบนชั้นวาง — เพิ่มสินค้าได้ที่หน้า “สต็อก”"}
             </div>
           )}
           <Pagination
@@ -269,11 +274,11 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
           <button
             type="button"
             onClick={() => setMobileView("cart")}
-            className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t-2 border-primary/15 bg-white/95 px-4 py-3 shadow-[0_-8px_20px_rgba(0,0,0,0.10)] backdrop-blur lg:hidden"
+            className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t-2 border-primary/15 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_20px_rgba(0,0,0,0.10)] backdrop-blur md:hidden"
           >
             <ShoppingCart className="h-5 w-5 shrink-0 text-primary" />
             <span className="text-sm font-bold text-primary-dark">ดูตะกร้า</span>
-            <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-white">
               {items.reduce((s, i) => s + i.qty, 0)} ชิ้น
             </span>
             <span className="ml-auto truncate text-base font-extrabold text-primary-dark">
@@ -288,8 +293,8 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
       <aside
         ref={cartRef}
         className={cn(
-          "mt-4 flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border-2 border-primary/15 bg-white shadow-card lg:mt-0 lg:w-[340px] lg:shrink-0",
-          isShelf && "max-lg:hidden"
+          "mt-4 flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-primary/20 bg-white shadow-card md:mt-0 md:w-[320px] md:shrink-0 xl:w-[360px]",
+          isShelf && "max-md:hidden"
         )}
       >
         <div className="flex items-center gap-1.5 border-b-2 border-dashed border-primary/15 bg-cream px-3 py-2.5 sm:px-4 sm:py-3">
@@ -297,19 +302,19 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
             type="button"
             onClick={() => setMobileView("shelf")}
             aria-label="กลับไปเลือกสินค้า"
-            className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-primary/20 text-primary-dark hover:bg-primary/10 lg:hidden"
+            className="mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-primary/20 text-primary-dark hover:bg-primary/10 md:hidden"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <ShoppingCart className="h-5 w-5 shrink-0 text-primary" />
           <h2 className="text-sm font-extrabold text-primary-dark">ตะกร้า</h2>
-          <span className="text-xs text-zinc-400">
+          <span className="text-xs text-zinc-500">
             {items.reduce((s, i) => s + i.qty, 0)} ชิ้น
           </span>
           {items.length > 0 && (
             <button
               onClick={clear}
-              className="ml-auto text-xs text-zinc-400 hover:text-red-600"
+              className="ml-auto text-xs text-zinc-500 hover:text-red-600"
             >
               ล้างตะกร้า
             </button>
@@ -318,7 +323,7 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
           {items.length === 0 ? (
-            <p className="py-10 text-center text-sm text-zinc-400">
+            <p className="py-10 text-center text-sm text-zinc-500">
               ยังไม่มีสินค้าในตะกร้า
               <br />
               <span className="text-xs">
@@ -332,7 +337,7 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
                   <Thumb image={item.image} name={item.name} small />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{item.name}</p>
-                    <p className="truncate text-xs text-zinc-400">
+                    <p className="truncate text-xs text-zinc-500">
                       {item.meta} · {formatBaht(item.unitPrice)}
                     </p>
                   </div>
@@ -385,7 +390,7 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
                   key={m}
                   onClick={() => setPayment(m)}
                   className={cn(
-                    "flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[11px] font-medium transition-colors",
+                    "flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-xs font-medium transition-colors",
                     payment === m
                       ? "border-primary bg-primary text-white shadow-glow-teal"
                       : "border-primary/15 bg-white text-zinc-500 hover:bg-primary/10 hover:text-primary-dark"
@@ -470,7 +475,7 @@ export function PosClient({ products, forfeitedPawns }: PosClientProps) {
       {/* ------- ใบเสร็จสำเร็จ ------- */}
       {receipt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-3xl border-2 border-primary/15 bg-cream p-6 text-center shadow-glow-teal">
+          <div className="w-full max-w-sm rounded-3xl border border-primary/20 bg-cream p-6 text-center shadow-glow-teal">
             <CheckCircle2 className="mx-auto h-14 w-14 text-success" />
             <h3 className="mt-3 text-lg font-bold">ชำระเงินสำเร็จ</h3>
             <p className="mt-1 text-sm text-zinc-500">ใบเสร็จ</p>
@@ -524,9 +529,9 @@ function Chip({
     <button
       onClick={onClick}
       className={cn(
-        "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+        "shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
         active
-          ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
+          ? "bg-primary-dark text-white shadow-card"
           : "border-2 border-primary/20 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
       )}
     >
@@ -549,9 +554,9 @@ function ProductSection({
         {title}
       </h3>
       {Array.isArray(children) && children.length === 0 ? (
-        <p className="py-6 text-center text-xs text-zinc-400">{empty}</p>
+        <p className="py-6 text-center text-xs text-zinc-500">{empty}</p>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2.5 @min-[520px]:grid-cols-3 @min-[700px]:grid-cols-4 @min-[900px]:grid-cols-5">
           {children}
         </div>
       )}
@@ -625,7 +630,7 @@ function ProductCard({
           </span>
         )}
         {product.lowStock && !soldOut && (
-          <span className="absolute left-1 top-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-zinc-800 shadow-glow-gold">
+          <span className="absolute left-1 top-1 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-zinc-800 shadow-glow-gold">
             เหลือ {product.quantity}
           </span>
         )}
@@ -670,7 +675,7 @@ function PawnCard({
         <p className="line-clamp-2 text-xs font-medium leading-tight">
           {pawn.itemName}
         </p>
-        <p className="truncate text-[10px] text-zinc-400">
+        <p className="truncate text-xs text-zinc-500">
           {pawn.customerName} · {pawn.contractNumber}
         </p>
         <p className="mt-auto text-sm font-extrabold text-coral-dark">

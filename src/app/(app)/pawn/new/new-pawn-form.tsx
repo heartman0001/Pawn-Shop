@@ -211,7 +211,7 @@ export function NewPawnForm({ customers }: { customers: CustomerOption[] }) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-6 rounded-3xl border-2 border-primary/15 bg-white p-5 shadow-card sm:p-6"
+      className="space-y-6 rounded-3xl border border-primary/20 bg-white p-5 shadow-card sm:p-6"
     >
       {/* ---------- ลูกค้า ---------- */}
       <section>
@@ -315,7 +315,7 @@ export function NewPawnForm({ customers }: { customers: CustomerOption[] }) {
                   <span className="px-2 text-center text-xs font-bold text-primary-dark">
                     แนบรูปสิ่งของจากเครื่อง
                   </span>
-                  <span className="px-3 text-center text-[11px] text-zinc-400">
+                  <span className="px-3 text-center text-xs text-zinc-500">
                     {PRODUCT_IMAGE_UPLOAD_HINT}
                   </span>
                 </>
@@ -501,11 +501,11 @@ function SummaryItem({
 }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-wide text-primary/60">
+      <p className="text-xs font-bold uppercase tracking-wide text-primary-dark">
         {label}
       </p>
       <p className="text-xl font-extrabold text-primary-dark">{value}</p>
-      {hint && <p className="text-xs font-medium text-zinc-400">{hint}</p>}
+      {hint && <p className="text-xs font-medium text-zinc-500">{hint}</p>}
     </div>
   );
 }

@@ -25,7 +25,7 @@ import {
   upsertPawnItem,
 } from "@/app/actions/manage";
 import { formatDateTime, PAWN_STATUS_LABEL, PAWN_STATUS_TONE } from "@/lib/format";
-import { Badge, Button, Field, Input } from "@/components/ui";
+import { Badge, Button, Field, Input, PageHeader } from "@/components/ui";
 import { cn } from "@/components/ui";
 import { PageSizeSelector } from "@/components/page-size-selector";
 import { usePageSize } from "@/lib/use-page-size";
@@ -161,18 +161,24 @@ export function ManageClient({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-primary-dark">
-            จัดการข้อมูล
-          </h1>
-          <p className="text-sm text-zinc-500">
-            เพิ่ม / แก้ไข / ลบ — ข้อมูลลูกค้า และ สินค้ารับจำนำ
-          </p>
-        </div>
-        <PageSizeSelector value={pageSize} onChange={setPageSize} />
-      </div>
+      <PageHeader
+        title="จัดการข้อมูล"
+        description="เพิ่ม / แก้ไข / ลบ — ข้อมูลลูกค้า และ สินค้ารับจำนำ"
+        actions={
+          <>
+            <PageSizeSelector value={pageSize} onChange={setPageSize} />
+            {tab === "customers" ? (
+              <Button onClick={() => setCustomerModal({ mode: "add" })}>
+                <UserPlus className="h-4 w-4" /> เพิ่มลูกค้า
+              </Button>
+            ) : (
+              <Button onClick={() => setItemModal({ mode: "add" })}>
+                <Package className="h-4 w-4" /> เพิ่มสินค้ารับจำนำ
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Tabs + search */}
       <div className="flex flex-wrap items-center gap-2">
@@ -202,17 +208,6 @@ export function ManageClient({
             }
             className="pl-9"
           />
-        </div>
-        <div className="ml-auto">
-          {tab === "customers" ? (
-            <Button onClick={() => setCustomerModal({ mode: "add" })}>
-              <UserPlus className="h-4 w-4" /> เพิ่มลูกค้า
-            </Button>
-          ) : (
-            <Button onClick={() => setItemModal({ mode: "add" })}>
-              <Package className="h-4 w-4" /> เพิ่มสินค้ารับจำนำ
-            </Button>
-          )}
         </div>
       </div>
 
@@ -358,7 +353,7 @@ function TabBtn({
       className={cn(
         "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-all",
         active
-          ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
+          ? "bg-primary-dark text-white shadow-card"
           : "text-zinc-500 hover:text-primary-dark"
       )}
     >
@@ -391,7 +386,7 @@ function Pagination({
         onClick={() => onPageChange(Math.max(page - 1, 1))}
         disabled={page <= 1}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
           page <= 1 && "pointer-events-none opacity-40"
         )}
       >
@@ -406,7 +401,7 @@ function Pagination({
         onClick={() => onPageChange(Math.min(page + 1, totalPages))}
         disabled={page >= totalPages}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
           page >= totalPages && "pointer-events-none opacity-40"
         )}
       >
@@ -455,28 +450,28 @@ function CustomerTable({
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
+    <div className="xl:overflow-hidden xl:rounded-2xl xl:border xl:border-primary/15 xl:bg-surface-card xl:shadow-card">
       {/* Desktop */}
-      <div className="hidden overflow-x-auto sm:block">
+      <div className="hidden overflow-x-auto xl:block">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
-              <th className="px-4 py-3 font-medium">ชื่อ-นามสกุล</th>
-              <th className="px-4 py-3 font-medium">เลขบัตรประชาชน</th>
-              <th className="px-4 py-3 font-medium">โทรศัพท์</th>
-              <th className="px-4 py-3 font-medium">สัญญา</th>
-              <th className="px-4 py-3 font-medium">สมัครเมื่อ</th>
-              <th className="px-4 py-3 text-right font-medium">จัดการ</th>
+            <tr className="border-b border-primary/15 bg-primary/[0.04] text-left text-xs text-zinc-600">
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">ชื่อ-นามสกุล</th>
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">เลขบัตรประชาชน</th>
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">โทรศัพท์</th>
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สัญญา</th>
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สมัครเมื่อ</th>
+              <th scope="col" className="px-4 py-3 text-right font-semibold uppercase tracking-wide">จัดการ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-zinc-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-zinc-500">
                   {search ? `ไม่พบลูกค้า “${search}”` : "ยังไม่มีลูกค้า"}
                 </td>
-              </tr>
-            )}              {pagedRows.map((c) => (
+              </tr>)}
+            {pagedRows.map((c) => (
               <tr key={c.id} className="hover:bg-primary/5">
                 <td className="px-4 py-2.5 font-bold text-zinc-800">
                   {c.fullName}
@@ -488,7 +483,7 @@ function CustomerTable({
                     {c.contractCount} สัญญา
                   </Badge>
                 </td>
-                <td className="px-4 py-2.5 text-zinc-400">
+                <td className="px-4 py-2.5 text-zinc-500">
                   {formatDateTime(c.createdAt)}
                 </td>
                 <td className="px-4 py-2.5">
@@ -511,7 +506,7 @@ function CustomerTable({
           </tbody>
         </table>
       </div>
-      <div className="hidden sm:block">
+      <div className="hidden xl:block">
         <Pagination
           page={currentPage}
           totalPages={totalPages}
@@ -520,15 +515,15 @@ function CustomerTable({
       </div>
 
       {/* Mobile */}
-      <div className="space-y-3 p-3 sm:hidden">
+      <div className="grid gap-3 py-3 sm:grid-cols-2 xl:hidden">
         {rows.length === 0 && (
-          <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
+          <div className="rounded-2xl border border-dashed border-primary/20 bg-surface-card px-4 py-10 text-center text-sm text-zinc-500 sm:col-span-2">
             {search ? `ไม่พบลูกค้า “${search}”` : "ยังไม่มีลูกค้า"}
-          </div>
-        )}          {pagedRows.map((c) => (
+          </div>  )}
+        {pagedRows.map((c) => (
           <div
             key={c.id}
-            className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
+            className="rounded-2xl border border-primary/15 bg-surface-card p-4 shadow-card"
           >
             <div className="flex items-start justify-between gap-2">
               <span className="font-bold text-primary-dark">{c.fullName}</span>
@@ -555,7 +550,7 @@ function CustomerTable({
           </div>
         ))}
       </div>
-      <div className="sm:hidden">
+      <div className="xl:hidden">
         <Pagination
           page={currentPage}
           totalPages={totalPages}
@@ -605,29 +600,29 @@ function ItemTable({
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
+    <div className="xl:overflow-hidden xl:rounded-2xl xl:border xl:border-primary/15 xl:bg-surface-card xl:shadow-card">
       {/* Desktop */}
-      <div className="hidden overflow-x-auto sm:block">
+      <div className="hidden overflow-x-auto xl:block">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
-            <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
-              <th className="px-4 py-3 font-medium">สัญญา</th>
-              <th className="px-4 py-3 font-medium">สิ่งที่จำนำ</th>
-              <th className="px-4 py-3 font-medium">ลูกค้า</th>
-              <th className="px-4 py-3 text-right font-medium">เงินต้น</th>
-              <th className="px-4 py-3 text-center font-medium">ดอกเบี้ย</th>
-              <th className="px-4 py-3 font-medium">สถานะ</th>
-              <th className="px-4 py-3 text-right font-medium">จัดการ</th>
+            <tr className="border-b border-primary/15 bg-primary/[0.04] text-left text-xs text-zinc-600">
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สัญญา</th>
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สิ่งที่จำนำ</th>
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">ลูกค้า</th>
+              <th scope="col" className="px-4 py-3 text-right font-semibold uppercase tracking-wide">เงินต้น</th>
+              <th scope="col" className="px-4 py-3 text-center font-semibold uppercase tracking-wide">ดอกเบี้ย</th>
+              <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สถานะ</th>
+              <th scope="col" className="px-4 py-3 text-right font-semibold uppercase tracking-wide">จัดการ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-zinc-400">
+                <td colSpan={7} className="px-4 py-10 text-center text-zinc-500">
                   {search ? `ไม่พบ “${search}”` : "ยังไม่มีสินค้ารับจำนำ"}
                 </td>
-              </tr>
-            )}              {pagedRows.map((c) => (
+              </tr>)}
+            {pagedRows.map((c) => (
               <tr key={c.id} className="hover:bg-primary/5">
                 <td className="whitespace-nowrap px-4 py-2.5 font-bold text-zinc-800">
                   {c.contractNumber}
@@ -650,7 +645,7 @@ function ItemTable({
                         {c.itemName}
                       </p>
                       {c.serialNumber && (
-                        <p className="text-xs text-zinc-400">
+                        <p className="text-xs text-zinc-500">
                           S/N {c.serialNumber}
                         </p>
                       )}
@@ -659,7 +654,7 @@ function ItemTable({
                 </td>
                 <td className="px-4 py-2.5 text-zinc-600">
                   {c.customerName}
-                  <span className="block text-xs text-zinc-400">
+                  <span className="block text-xs text-zinc-500">
                     {c.customerPhone || "—"}
                   </span>
                 </td>
@@ -687,7 +682,7 @@ function ItemTable({
           </tbody>
         </table>
       </div>
-      <div className="hidden sm:block">
+      <div className="hidden xl:block">
         <Pagination
           page={currentPage}
           totalPages={totalPages}
@@ -696,15 +691,15 @@ function ItemTable({
       </div>
 
       {/* Mobile */}
-      <div className="space-y-3 p-3 sm:hidden">
+      <div className="grid gap-3 py-3 sm:grid-cols-2 xl:hidden">
         {rows.length === 0 && (
-          <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
+          <div className="rounded-2xl border border-dashed border-primary/20 bg-surface-card px-4 py-10 text-center text-sm text-zinc-500 sm:col-span-2">
             {search ? `ไม่พบ “${search}”` : "ยังไม่มีสินค้ารับจำนำ"}
-          </div>
-        )}          {pagedRows.map((c) => (
+          </div>  )}
+        {pagedRows.map((c) => (
           <div
             key={c.id}
-            className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
+            className="rounded-2xl border border-primary/15 bg-surface-card p-4 shadow-card"
           >
             <div className="flex items-start justify-between gap-2">
               <span className="font-bold text-primary-dark">
@@ -748,7 +743,7 @@ function ItemTable({
           </div>
         ))}
       </div>
-      <div className="sm:hidden">
+      <div className="xl:hidden">
         <Pagination
           page={currentPage}
           totalPages={totalPages}
@@ -1060,11 +1055,14 @@ function Modal({
 }) {
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="แบบฟอร์มบันทึก"
       className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border-2 border-primary/15 bg-surface-card p-5 shadow-card sm:rounded-3xl"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-primary/20 bg-surface-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card supports-[height:100dvh]:max-h-[92dvh] sm:rounded-3xl sm:pb-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between border-b-2 border-dashed border-primary/25 pb-3">
@@ -1075,7 +1073,7 @@ function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-primary/10 hover:text-primary-dark"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 hover:bg-primary/10 hover:text-primary-dark"
             aria-label="ปิด"
           >
             <X className="h-4 w-4" />
@@ -1127,11 +1125,14 @@ function ConfirmModal({
 
   return (
     <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-label="ยืนยันการลบ"
       className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-3xl border-2 border-coral/30 bg-surface-card p-5 shadow-card"
+        className="w-full max-w-sm rounded-3xl border border-coral/40 bg-surface-card p-5 shadow-card"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-base font-extrabold text-coral-dark">{title}</h3>
@@ -1169,7 +1170,7 @@ function IconBtn({
         disabled={disabled}
         aria-label={title}
         className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors",
+          "flex h-9 w-9 items-center justify-center rounded-full text-coral/60 transition-colors",
           disabled
             ? "cursor-not-allowed opacity-40"
             : "hover:bg-coral/10 hover:text-coral-dark"
@@ -1190,7 +1191,7 @@ function Line({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <dt className="shrink-0 text-zinc-400">{label}</dt>
+      <dt className="shrink-0 text-zinc-500">{label}</dt>
       <dd className="min-w-0 text-right text-zinc-700">{children}</dd>
     </div>
   );

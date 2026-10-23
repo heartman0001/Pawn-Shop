@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowRight,
   CalendarClock,
   Gavel,
@@ -23,7 +22,7 @@ import {
   PAYMENT_METHOD_LABEL,
 } from "@/lib/format";
 import { calcRedemption, PAWN_TERM_DAYS } from "@/lib/pawn-math";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "รายละเอียดสัญญาจำนำ — ร้านรับจำนำ POS" };
 
@@ -69,24 +68,11 @@ export default async function PawnContractDetailPage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      {/* Header */}
-      <div>
-        <Link
-          href="/pawns"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800"
-        >
-          <ArrowLeft className="h-4 w-4" /> กลับหน้ารายการสัญญา
-        </Link>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-primary-dark">
-              <HandCoins className="h-6 w-6 text-primary" />
-              {contract.contractNumber}
-            </h1>
-            <p className="text-sm text-zinc-500">
-              เปิดสัญญาเมื่อ {formatDateTime(contract.createdAt)}
-            </p>
-          </div>
+      <PageHeader
+        back={{ href: "/pawns", label: "กลับหน้ารายการสัญญา" }}
+        title={contract.contractNumber}
+        description={`เปิดสัญญาเมื่อ ${formatDateTime(contract.createdAt)}`}
+        badge={
           <Badge
             tone={overdue ? "coral" : PAWN_STATUS_TONE[contract.status]}
             className="px-3 py-1.5 text-sm"
@@ -94,8 +80,8 @@ export default async function PawnContractDetailPage({
             {PAWN_STATUS_LABEL[contract.status]}
             {overdue ? " · เลยกำหนด" : ""}
           </Badge>
-        </div>
-      </div>
+        }
+      />
 
       {/* สิ่งของ */}
       <Card className="overflow-hidden">
@@ -137,7 +123,7 @@ export default async function PawnContractDetailPage({
           </InfoLine>
           <InfoLine label="โทรศัพท์">
             <span className="inline-flex items-center gap-1">
-              <Phone className="h-3.5 w-3.5 text-zinc-400" />
+              <Phone className="h-3.5 w-3.5 text-zinc-500" />
               {contract.customer.phone || "—"}
             </span>
           </InfoLine>
@@ -160,7 +146,7 @@ export default async function PawnContractDetailPage({
         <SectionTitle icon={<Wallet className="h-4 w-4" />}>
           ข้อมูลสัญญา
         </SectionTitle>
-        <dl className="grid gap-2 p-5 text-sm sm:grid-cols-2">
+        <dl className="grid gap-y-2 gap-x-10 p-5 text-sm sm:grid-cols-2">
           <InfoLine label="เงินต้น">{formatBaht(contract.principalAmount)}</InfoLine>
           <InfoLine label="ดอกเบี้ย">
             {contract.interestRatePercent}% / {PAWN_TERM_DAYS} วัน
@@ -184,7 +170,7 @@ export default async function PawnContractDetailPage({
               <CalendarClock className="h-4 w-4" />
               ยอดไถ่ถอน ณ วันนี้
             </p>
-            <div className="grid gap-2 text-sm sm:grid-cols-3">
+            <div className="grid gap-y-2 gap-x-10 text-sm sm:grid-cols-3">
               <InfoLine label="ผ่านมา">
                 {redemptionNow.daysElapsed} วัน
               </InfoLine>
@@ -313,14 +299,14 @@ export default async function PawnContractDetailPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
-                  <th className="px-4 py-2.5 font-medium">รอบที่</th>
-                  <th className="px-4 py-2.5 text-right font-medium">
+                <tr className="border-b border-primary/15 bg-primary/[0.04] text-left text-xs text-zinc-600">
+                  <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">รอบที่</th>
+                  <th scope="col" className="px-4 py-2.5 text-right font-semibold uppercase tracking-wide">
                     ดอกเบี้ย
                   </th>
-                  <th className="px-4 py-2.5 font-medium">ครบกำหนดเดิม</th>
-                  <th className="px-4 py-2.5 font-medium">ครบกำหนดใหม่</th>
-                  <th className="px-4 py-2.5 font-medium">ชำระเมื่อ</th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">ครบกำหนดเดิม</th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">ครบกำหนดใหม่</th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">ชำระเมื่อ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -398,7 +384,7 @@ function InfoLine({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <dt className="shrink-0 text-zinc-400">{label}</dt>
+      <dt className="shrink-0 text-zinc-500">{label}</dt>
       <dd className="min-w-0 text-right text-zinc-700">{children}</dd>
     </div>
   );

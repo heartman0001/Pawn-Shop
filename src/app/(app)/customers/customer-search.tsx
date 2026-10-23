@@ -8,7 +8,6 @@ import {
   HandCoins,
   Package,
   Search,
-  UserPlus,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -98,42 +97,37 @@ export function CustomerSearch({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[220px] flex-1">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
           <Input
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="ค้นหาชื่อ / เลขบัตรประชาชน / เบอร์โทร…"
+            placeholder="ค้นหาชื่อ / เลขบัตร / เบอร์โทร…"
             className="pl-9"
           />
         </div>
         <PageSizeSelector value={pageSize} onChange={handlePageSize} />
-        <Link href="/pawn/new">
-          <Button variant="secondary">
-            <UserPlus className="h-4 w-4" /> ลูกค้าใหม่
-          </Button>
-        </Link>
       </div>
 
       {/* mobile: card stack / desktop: table */}
-      <div className="overflow-x-auto rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
+      <div className="lg:overflow-x-auto lg:rounded-2xl lg:border lg:border-primary/15 lg:bg-surface-card lg:shadow-card">
         {/* Desktop: table */}
-        <div className="hidden divide-y divide-zinc-100 sm:block">
+        <div className="hidden divide-y divide-zinc-100 lg:block">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
-                <th className="px-4 py-3 font-medium">ชื่อ-นามสกุล</th>
-                <th className="px-4 py-3 font-medium">เลขบัตรประชาชน</th>
-                <th className="px-4 py-3 font-medium">โทรศัพท์</th>
-                <th className="px-4 py-3 font-medium">สัญญา</th>
-                <th className="px-4 py-3 font-medium">สมัครเมื่อ</th>
-                <th className="px-4 py-3 text-right font-medium">จัดการ</th>
+              <tr className="border-b border-primary/15 bg-primary/[0.04] text-left text-xs text-zinc-600">
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">ชื่อ-นามสกุล</th>
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">เลขบัตรประชาชน</th>
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">โทรศัพท์</th>
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สัญญา</th>
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สมัครเมื่อ</th>
+                <th scope="col" className="px-4 py-3 text-right font-semibold uppercase tracking-wide">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-zinc-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-zinc-500">
                     ไม่พบลูกค้า “{search}”
                   </td>
                 </tr>
@@ -152,7 +146,7 @@ export function CustomerSearch({
                       <span className="text-zinc-500">{c.contractCount} สัญญา</span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-zinc-400">
+                  <td className="px-4 py-2.5 text-zinc-500">
                     {formatDateTime(c.createdAt)}
                   </td>
                   <td className="px-4 py-2.5">
@@ -171,7 +165,7 @@ export function CustomerSearch({
             </tbody>
           </table>
         </div>
-        <div className="hidden sm:block">
+        <div className="hidden lg:block">
           <Pagination
             page={currentPage}
             totalPages={totalPages}
@@ -180,56 +174,47 @@ export function CustomerSearch({
         </div>
 
         {/* Mobile: card stack */}
-        <div className="space-y-3 p-3 sm:hidden">
+        <div className="grid gap-3 py-3 sm:grid-cols-2 lg:hidden">
           {filtered.length === 0 && (
-            <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
+            <div className="rounded-2xl border border-dashed border-primary/20 bg-surface-card px-4 py-10 text-center text-sm text-zinc-500 sm:col-span-2">
               ไม่พบลูกค้า “{search}”
             </div>
           )}
           {pagedRows.map((c) => (
-            <div
+            <button
               key={c.id}
-              className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
+              type="button"
+              onClick={() => setViewCustomer(c)}
+              className="group flex w-full items-center gap-3 rounded-2xl border border-primary/15 bg-surface-card p-3.5 text-left shadow-card transition-colors hover:border-primary/35 hover:bg-primary/[0.03]"
             >
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-bold text-primary-dark">{c.fullName}</span>
-                {c.activeCount > 0 ? (
-                  <Badge tone="teal">
-                    {c.activeCount} active / {c.contractCount} สัญญา
-                  </Badge>
-                ) : (
-                  <span className="whitespace-nowrap text-sm text-zinc-500">
-                    {c.contractCount} สัญญา
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-bold text-primary-dark">
+                    {c.fullName}
                   </span>
-                )}
+                  {c.activeCount > 0 ? (
+                    <Badge tone="teal" className="shrink-0">
+                      {c.activeCount} active / {c.contractCount} สัญญา
+                    </Badge>
+                  ) : (
+                    <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-zinc-500">
+                      {c.contractCount} สัญญา
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 truncate text-xs text-zinc-600 tabular-nums">
+                  {c.nationalId}
+                  {c.phone ? ` · ${c.phone}` : ""}
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  สมัคร {formatDateTime(c.createdAt)}
+                </p>
               </div>
-              <dl className="mt-3 space-y-1.5 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-zinc-400">เลขบัตรประชาชน</dt>
-                  <dd className="text-zinc-700">{c.nationalId}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-zinc-400">โทรศัพท์</dt>
-                  <dd className="text-zinc-700">{c.phone || "—"}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-zinc-400">สมัครเมื่อ</dt>
-                  <dd className="text-zinc-700">{formatDateTime(c.createdAt)}</dd>
-                </div>
-              </dl>
-              <div className="mt-3 flex justify-end border-t-2 border-dashed border-primary/20 pt-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setViewCustomer(c)}
-                >
-                  <Eye className="h-3.5 w-3.5" /> ดูข้อมูล
-                </Button>
-              </div>
-            </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400 transition-colors group-hover:text-primary" />
+            </button>
           ))}
         </div>
-        <div className="sm:hidden">
+        <div className="lg:hidden">
           <Pagination
             page={currentPage}
             totalPages={totalPages}
@@ -289,11 +274,14 @@ function CustomerContractsModal({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="แบบฟอร์มบันทึก"
       className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border-2 border-primary/15 bg-surface-card p-5 shadow-card sm:rounded-3xl"
+        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-primary/20 bg-surface-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card supports-[height:100dvh]:max-h-[92dvh] sm:rounded-3xl sm:pb-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3 border-b-2 border-dashed border-primary/25 pb-3">
@@ -310,7 +298,7 @@ function CustomerContractsModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:bg-primary/10 hover:text-primary-dark"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 hover:bg-primary/10 hover:text-primary-dark"
             aria-label="ปิด"
           >
             <X className="h-4 w-4" />
@@ -318,7 +306,7 @@ function CustomerContractsModal({
         </div>
 
         {customer.contracts.length === 0 ? (
-          <p className="rounded-2xl border-2 border-primary/10 bg-cream px-4 py-10 text-center text-sm text-zinc-400">
+          <p className="rounded-2xl border border-primary/15 bg-cream px-4 py-10 text-center text-sm text-zinc-500">
             ลูกค้าคนนี้ยังไม่มีสินค้ารับจำนำ
           </p>
         ) : (
@@ -352,7 +340,7 @@ function CustomerContractsModal({
             </div>
 
             {filteredContracts.length === 0 ? (
-              <p className="rounded-2xl border-2 border-primary/10 bg-cream px-4 py-10 text-center text-sm text-zinc-400">
+              <p className="rounded-2xl border border-primary/15 bg-cream px-4 py-10 text-center text-sm text-zinc-500">
                 ไม่พบสัญญาที่ตรงกับเงื่อนไข
               </p>
             ) : (
@@ -361,7 +349,7 @@ function CustomerContractsModal({
                   <Link
                     key={pc.id}
                     href={`/pawns/${pc.id}`}
-                    className="block rounded-2xl border-2 border-primary/10 bg-cream p-4 transition-colors hover:border-primary/30 hover:bg-primary/5"
+                    className="block rounded-2xl border border-primary/15 bg-cream p-4 transition-colors hover:border-primary/30 hover:bg-primary/5"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="font-bold text-primary-dark">
@@ -457,7 +445,7 @@ function DetailLine({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <dt className="shrink-0 text-zinc-400">{label}</dt>
+      <dt className="shrink-0 text-zinc-500">{label}</dt>
       <dd className="min-w-0 text-right text-zinc-700">{children}</dd>
     </div>
   );
@@ -482,7 +470,7 @@ function Pagination({
         onClick={() => onPageChange(Math.max(page - 1, 1))}
         disabled={page <= 1}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
           page <= 1 && "pointer-events-none opacity-40"
         )}
       >
@@ -497,7 +485,7 @@ function Pagination({
         onClick={() => onPageChange(Math.min(page + 1, totalPages))}
         disabled={page >= totalPages}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
           page >= totalPages && "pointer-events-none opacity-40"
         )}
       >

@@ -137,12 +137,13 @@ export function PawnContractsClient({
       {/* filter + search — mobile: burger dropdown; desktop: inline chips */}
       <div className="relative">
         {/* Mobile: hamburger button */}
-        <div className="sm:hidden flex px-3">
+        <div className="flex gap-2 sm:hidden">
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
-            className="shrink-0 rounded-full border-2 border-primary/15 bg-white p-2 text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-primary/20 bg-white text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary-dark"
             aria-label="เมนูกรอง"
+            aria-expanded={mobileMenuOpen}
           >
             <Filter className="h-5 w-5" />
           </button>
@@ -157,8 +158,8 @@ export function PawnContractsClient({
           </div>
           {/* Dropdown menu */}
           {mobileMenuOpen && (
-            <div className="absolute right-0 top-12 z-50 w-56 rounded-xl border-2 border-primary/10 bg-surface-card p-3 shadow-card">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-400">
+            <div className="absolute right-0 top-12 z-50 w-56 rounded-xl border border-primary/15 bg-surface-card p-3 shadow-card">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-500">
                 กรองตามสถานะ
               </p>
               <div className="flex flex-col gap-1">
@@ -169,7 +170,7 @@ export function PawnContractsClient({
                     className={cn(
                       "w-full rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                       status === f.key
-                        ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
+                        ? "bg-primary-dark text-white shadow-card"
                         : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
                     )}
                   >
@@ -190,7 +191,7 @@ export function PawnContractsClient({
               className={cn(
                 "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors",
                 status === f.key
-                  ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
+                  ? "bg-primary-dark text-white shadow-card"
                   : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
               )}
             >
@@ -209,14 +210,15 @@ export function PawnContractsClient({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-0">
-        <p className="text-xs text-zinc-400">พบทั้งหมด {total} สัญญา</p>
-        <label className="flex items-center gap-1.5 text-xs text-zinc-400">
-          แสดง
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-zinc-600">พบทั้งหมด {total} สัญญา</p>
+        <label className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-zinc-500">
+          <span className="hidden sm:inline">แสดง</span>
           <Select
             value={pageSize}
             onChange={(e) => goSize(Number(e.target.value))}
-            className="h-8 w-16 px-2 text-xs"
+            className="h-11 w-16 px-2 text-base sm:h-9 sm:text-xs"
+            aria-label="จำนวนรายการต่อหน้า"
           >
             {pageSizeOptions.map((n) => (
               <option key={n} value={n}>
@@ -224,16 +226,16 @@ export function PawnContractsClient({
               </option>
             ))}
           </Select>
-          ต่อหน้า
+          <span className="hidden sm:inline">ต่อหน้า</span>
         </label>
       </div>
 
       {/* รายการสัญญา — mobile: card stack / desktop: table card */}
-      <div className="md:overflow-hidden md:rounded-2xl md:border-2 md:border-primary/10 md:bg-surface-card md:shadow-card">
+      <div className="xl:overflow-hidden xl:rounded-2xl xl:border xl:border-primary/15 xl:bg-surface-card xl:shadow-card">
         {/* Mobile: card stack */}
-        <div className="space-y-3 p-3 md:hidden">
+        <div className="grid gap-3 py-3 sm:grid-cols-2 xl:hidden">
           {contracts.length === 0 && (
-            <p className="py-12 text-center text-sm text-zinc-400">
+            <p className="col-span-full rounded-2xl border border-dashed border-primary/20 bg-surface-card px-4 py-12 text-center text-sm text-zinc-500">
               ไม่พบสัญญาในเงื่อนไขนี้
             </p>
           )}
@@ -244,7 +246,7 @@ export function PawnContractsClient({
             return (
               <div
                 key={c.id}
-                className="overflow-hidden rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
+                className="overflow-hidden rounded-2xl border border-primary/15 bg-surface-card p-4 shadow-card"
               >
                 <div
                   className={cn(
@@ -285,29 +287,29 @@ export function PawnContractsClient({
                         className="h-10 w-10 shrink-0 rounded-lg border border-primary/15 object-cover"
                       />
                     )}
-                    <p className="min-w-0 truncate text-sm font-semibold">
+                    <p className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-800">
                       {c.itemName}
                     </p>
+                    <span className="shrink-0 text-sm font-extrabold tabular-nums text-zinc-900">
+                      {formatBaht(c.principalAmount)}
+                    </span>
                   </div>
-                  <dl className="mt-3 space-y-1.5 text-sm">
-                    <CardLine label="ลูกค้า">
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-xs text-zinc-600">
                       {c.customerName}
                       {c.customerPhone ? ` · ${c.customerPhone}` : ""}
-                    </CardLine>
-                    <CardLine label="เงินต้น">
-                      <b className="text-zinc-800">
-                        {formatBaht(c.principalAmount)}
-                      </b>
-                    </CardLine>
-                    <CardLine label="ครบกำหนด">
-                      <span className="inline-flex items-center gap-1">
-                        <CalendarClock className="h-3.5 w-3.5" />
-                        {formatDate(c.dueDate)}
-                        {overdue && <Badge tone="coral">เลยกำหนด</Badge>}
+                    </span>
+                    {c.renewalCount > 0 && (
+                      <span className="shrink-0 text-xs text-zinc-500">
+                        ต่อดอก {c.renewalCount} ครั้ง
                       </span>
-                    </CardLine>
-                    <CardLine label="ต่อดอก">{c.renewalCount} ครั้ง</CardLine>
-                  </dl>
+                    )}
+                  </div>
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-zinc-600">
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    ครบกำหนด {formatDate(c.dueDate)}
+                    {overdue && <Badge tone="coral">เลยกำหนด</Badge>}
+                  </p>
                 </div>
 
                 {c.status === "ACTIVE" && (
@@ -381,17 +383,17 @@ export function PawnContractsClient({
         </div>
 
         {/* Desktop: table card */}
-        <div className="hidden overflow-x-auto md:block">
+        <div className="hidden overflow-x-auto xl:block">
           <table className="w-full min-w-[880px] text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
-                <th className="px-4 py-2.5 font-medium">สัญญา</th>
-                <th className="px-4 py-2.5 font-medium">สิ่งที่จำนำ</th>
-                <th className="px-4 py-2.5 text-right font-medium">เงินต้น</th>
-                <th className="px-4 py-2.5 font-medium">ครบกำหนด</th>
-                <th className="px-4 py-2.5 text-center font-medium">ต่อดอก</th>
-                <th className="px-4 py-2.5 font-medium">สถานะ</th>
-                <th className="px-4 py-2.5 text-right font-medium">จัดการ</th>
+              <tr className="border-b border-primary/15 bg-primary/[0.04] text-left text-xs text-zinc-600">
+                <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">สัญญา</th>
+                <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">สิ่งที่จำนำ</th>
+                <th scope="col" className="px-4 py-2.5 text-right font-semibold uppercase tracking-wide">เงินต้น</th>
+                <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">ครบกำหนด</th>
+                <th scope="col" className="px-4 py-2.5 text-center font-semibold uppercase tracking-wide">ต่อดอก</th>
+                <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">สถานะ</th>
+                <th scope="col" className="px-4 py-2.5 text-right font-semibold uppercase tracking-wide">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -399,7 +401,7 @@ export function PawnContractsClient({
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-4 py-12 text-center text-sm text-zinc-400"
+                    className="px-4 py-12 text-center text-sm text-zinc-500"
                   >
                     ไม่พบสัญญาในเงื่อนไขนี้
                   </td>
@@ -438,7 +440,7 @@ export function PawnContractsClient({
                             <p className="font-bold text-zinc-800">
                               {c.contractNumber}
                             </p>
-                            <p className="text-xs text-zinc-400">
+                            <p className="text-xs text-zinc-500">
                               {c.customerName}
                               {c.customerPhone ? ` · ${c.customerPhone}` : ""}
                             </p>
@@ -588,17 +590,4 @@ export function PawnContractsClient({
   );
 }
 
-function CardLine({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <dt className="shrink-0 text-zinc-400">{label}</dt>
-      <dd className="min-w-0 text-right text-zinc-700">{children}</dd>
-    </div>
-  );
-}
+

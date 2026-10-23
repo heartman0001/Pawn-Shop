@@ -38,7 +38,7 @@ export function SaleItemsAccordion({ sale }: { sale: SaleRow }) {
       </button>
 
       {open && (
-        <ul className="mt-2 space-y-1.5 rounded-xl border-2 border-primary/10 bg-primary/5 p-2.5">
+        <ul className="mt-2 space-y-1.5 rounded-xl border border-primary/15 bg-primary/5 p-2.5">
           {sale.items.map((it, i) => (
             <li
               key={it.productId ?? `pawn-${sale.receiptNumber}-${i}`}
@@ -46,13 +46,13 @@ export function SaleItemsAccordion({ sale }: { sale: SaleRow }) {
             >
               <span className="min-w-0 text-zinc-700">
                 {it.product?.name ?? it.pawnContract?.itemName ?? "ไม่ทราบชื่อสินค้า"}
-                <span className="ml-1 text-xs text-zinc-400">×{it.quantity}</span>
+                <span className="ml-1 text-xs text-zinc-500">×{it.quantity}</span>
               </span>
               <span className="shrink-0 text-right">
                 <span className="block font-bold text-zinc-800">
                   {formatBaht(it.unitPrice * it.quantity)}
                 </span>
-                <span className="block text-xs text-zinc-400">
+                <span className="block text-xs text-zinc-500">
                   {formatBaht(it.unitPrice)} / ชิ้น
                 </span>
               </span>

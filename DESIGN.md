@@ -1,162 +1,114 @@
-# Flip7 Design System
+# PomJame Shop — Design System
 
-## Overview
+ระบบจัดการร้านรับจำนำ + POS ภาษาไทย ใช้งานจริงที่เคาน์เตอร์ร้านทุกวัน
+โหมดของผลิตภัณฑ์คือ **Operate** — เป้าหมายของผู้ใช้คือ "ทำงานเสร็จเร็วและไม่กดพลาด"
+ความสง่างามจึงมาจากความแม่นยำ ไม่ใช่การตกแต่ง
 
-Flip7 is a retro-playful, teal-coral-gold design system crafted for the Flip7 card game scoring mini-program. Inspired by the original Flip7 board game packaging, it blends vintage warmth with modern mobile UX. The visual language is bold, joyful, and tactile -- combining BounceBox's bubbly energy with QuizForge's competitive gamification patterns. Every element feels like a game piece you want to tap.
+ทิศทางภาพ: **teal / gold / coral บนพื้น cream** — อบอุ่นแบบร้านของมือสอง
+แต่ตัวเลขและตารางต้องคมและอ่านง่ายกว่าร้านค้าทั่วไป
+ทุกหน้าจอใช้ภาษาไทย ตัวเลขเป็นจำนวนเต็มบาท ไม่มีทศนิยม
+
+---
+
+## Typography
+
+**ฟอนต์ UI: Noto Sans Thai** (variable 400–800) — มีหัว อ่านง่ายทั้งไทยและเลขละติน
+โหลดผ่าน `next/font/google` แล้ว self-host ที่ build (เปิดร้านแบบออฟไลน์ได้)
+**ฟอนต์รหัสอ้างอิง: Geist Mono** — เลขสัญญา `PC-YYYYMMDD-xxx`, เลขใบเสร็จ
+
+| บทบาท | คลาส | ขนาด / น้ำหนัก |
+|---|---|---|
+| ชื่อหน้า | `text-[1.6rem] sm:text-[1.75rem] font-extrabold tracking-tight` | 25.6 / 28px, 800 |
+| หัวข้อการ์ด | `text-sm font-extrabold uppercase tracking-wide` | 14px, 800 |
+| เนื้อหา / ตาราง | `text-sm` | 14px |
+| ข้อความรอง | `text-xs font-medium text-zinc-500` | 12px |
+| ตัวเลขเงินหลัก | `text-3xl sm:text-4xl font-extrabold tabular-nums` | 30 / 36px |
+| ตัวเลขในตาราง | `tabular-nums` (มี rule ระดับ `table` แล้ว) | ตามบริบท |
+
+- ภาษาไทยต้องการระยะบรรทัดมากกว่าละติน: `text-xs` 1.6, `text-sm` 1.65, `text-base` 1.7 (ตั้งใน `@theme`)
+- ห้ามใช้ตัวอักษรเล็กกว่า 12px กับข้อความไทย
+- ตัวเลขทุกตัวที่ต้องเทียบหลัก (เงิน, จำนวน, วันที่) ต้อง `tabular-nums`
 
 ---
 
 ## Colors
 
-- **Primary Teal** (#2BA8A2): Main UI, backgrounds, avatars, progress bars
-- **Primary Light** (#3CC4BD): Hover states, lighter accents
-- **Primary Dark** (#1E8C86): Deep backgrounds, text on light surfaces
-- **Primary BG** (#E8F6F5): Subtle teal tint for backgrounds
-- **Accent Gold** (#FFD23F): CTAs, highlights, first-player badges, celebrations
-- **Accent Light** (#FFE47A): Soft gold tints, active states
-- **Accent Dark** (#E6B800): Gold hover states, depth
-- **Coral** (#EF6C4A): BOOM state, warnings, ranking #3, energy
-- **Coral Light** (#FF8A6A): Soft coral tints
-- **Coral Dark** (#D45233): Coral depth, hover
-- **Cream** (#FFF8E7): Card backgrounds, input surfaces
-- **Sky Blue** (#5DADE2): Flip7 bonus, info states
-- **Surface Base** (#EFF8F7): Page background
-- **Surface Card** (#FFFFFF): Card backgrounds
-- **Success** (#27AE60): Positive states
-- **Error** (#E74C3C): Error states
+| Token | Hex | ใช้กับ |
+|---|---|---|
+| `primary` | `#2BA8A2` | ไอคอน, แถบ active, เน้นพื้น |
+| `primary-light` | `#3CC4BD` | ไล่สี, hover |
+| `primary-dark` | `#17756F` | **ข้อความ** หัวข้อ ลิงก์ (ผ่าน AA บนพื้นขาว) |
+| `primary-bg` | `#E8F6F5` | พื้น teal อ่อน |
+| `accent` | `#FFD23F` | CTA หลัก (gold) — ตัวอักษรบนปุ่มเป็น `zinc-900` |
+| `accent-light` / `accent-dark` | `#FFE47A` / `#E6B800` | ไล่สี gold, hover |
+| `coral` | `#EF6C4A` | เตือน, หลุดจำนำ, ลบ |
+| `coral-dark` | `#C2472E` | **ข้อความ** เตือน/ติดลบ (ผ่าน AA) |
+| `cream` | `#FFF8E7` | พื้น input, การ์ดเน้น, ใบเสร็จ |
+| `surface-base` | `#EFF8F7` | พื้นหลังแอป |
+| `surface-card` | `#FFFFFF` | การ์ด/ตาราง |
+| `success` | `#27AE60` | ยอดขาย, สถานะสำเร็จ |
+| `error` | `#E74C3C` | ข้อผิดพลาด/ติดลบ |
 
-## Typography
-
-- **Headline Style**: System font stack, extra-bold (800), generous letter-spacing (4-6rpx)
-- **Body Font**: -apple-system, BlinkMacSystemFont, PingFang SC, Microsoft YaHei
-- **Display**: 72rpx extra-bold
-- **h1**: 48rpx extra-bold
-- **h2**: 36rpx extra-bold
-- **h3**: 32rpx bold
-- **body**: 28rpx medium
-- **sm**: 24rpx medium
-- **xs**: 20rpx medium
+**กฎสี:** teal = ข้อมูล/นำทาง, gold = การกระทำหลัก, coral = เตือน/ทำลาย, เขียว = เงินเข้า
+ไม่ใช้สีเพียงอย่างเดียวสื่อความหมาย — ต้องมีคำหรือเครื่องหมาย `+` / `−` กำกับเสมอ
+ข้อความบนพื้นต้องใช้ `primary-dark` / `coral-dark` / `zinc-600` ขึ้นไป (ไม่ใช้ `zinc-400` กับข้อความ)
 
 ---
 
-## Spacing
+## Spacing, radius, elevation
 
-Base unit: **8rpx**
-- **xs**: 8rpx
-- **sm**: 16rpx
-- **md**: 24rpx
-- **lg**: 32rpx
-- **xl**: 48rpx
-
-## Border Radius
-
-- **sm** (8rpx): Small tags, inputs
-- **md** (16rpx): Cards, buttons, inputs
-- **lg** (24rpx): Feature cards, panels, scoring items
-- **xl** (32rpx): Hero cards, modals, logo
-- **round** (999rpx): Pill buttons, badges, rank badges
-
-## Elevation -- Colored Glow System
-
-- **shadow-sm**: 0 2rpx 8rpx black at 8%
-- **shadow-md**: 0 4rpx 16rpx black at 12%
-- **shadow-lg**: 0 8rpx 32rpx black at 16%
-- **shadow-card**: 0 4rpx 20rpx teal at 10%
-- **shadow-coral-glow**: 0 4rpx 20rpx coral at 35%
-- **shadow-teal-glow**: 0 4rpx 20rpx teal at 30%
-- **shadow-accent-glow**: 0 4rpx 20rpx gold at 40%
-- **shadow-sky-glow**: 0 4rpx 16rpx sky-blue at 30%
-- **shadow-focus**: 0 0 0 4rpx primary at 15%
-
-## Components
-
-### Logo (Setup Page Header)
-
-Inspired by the original Flip7 board game packaging. Three layers:
-
-#### Fan Cards Background
-- 5 colored cards fanned out behind the text
-- Rotation angles: -24deg, -12deg, 0deg, 12deg, 24deg
-
-#### FLIP7 Text
-- Entire text group rotated -3deg
-- Wrapped in a cream-colored parallelogram background (skewX(-6deg) + dark border)
-- "FLIP": 88rpx extra-bold, primary-dark, light text-shadow
-- "7": 152rpx extra-bold, accent gold, rotated 4-6deg, multi-layer dark text-shadow stroke
-
-#### Ribbon Banner
-- Classic retro folded-ribbon style from the original packaging
-- Main body: Cream background, 3rpx dark border
-- Side tails: pseudo-elements extending behind (z-index: -1), offset top: 8rpx for 3D fold effect
-- Tail color: slightly darker cream with matching border
-- Text: primary-dark, extra-bold, letter-spacing 8rpx
-
-### Buttons
-
-Pill shape (999rpx radius), minimum 72rpx height, bounce transition curve.
-
-#### Primary (Gold CTA)
-- Gradient gold background, gloss overlay via ::before
-- Shadow: shadow-accent-glow, Active: scale(0.95)
-
-#### Counter Buttons (+/-)
-- Rounded square (16rpx radius), 80rpx x 80rpx
-- Minus: coral themed, Plus: teal themed
-
-#### BOOM Button
-- Active: coral fill, shadow-coral-glow, pulse animation
-
-#### Flip7 Button
-- Active: sky-blue fill, shadow-sky-glow
-
-### Cards (Scoring Items)
-
-White background, 24rpx radius, shadow-card, 6rpx colored left accent bar.
-- Default: teal-light left border
-- Highlighted: gold left border, golden gradient, shadow-accent-glow
-- BOOM Active: coral left border, coral gradient, pulse animation
-
-### Victory Rankings (2nd/3rd Place)
-
-Tiered visual treatment for podium positions:
-- Silver (2nd): 8rpx silver accent bar, silver gradient avatar (64rpx), medal emoji, enlarged score
-- Bronze (3rd): 8rpx coral accent bar, coral gradient avatar (60rpx), medal emoji, coral score
-- Others (4th+): Default styling, standard avatar (56rpx)
-
-### Section Titles
-
-- Emoji icon in view container (not text) for consistent alignment
-- 3rpx dashed bottom border for playful feel
+- ระยะห่างพื้นฐาน: 4px scale — ใช้ `gap-2/3/4`, `space-y-4/5/6`
+- Page shell: `max-w-7xl`, `px-4 pb-6 pt-16 lg:p-6` (เผื่อปุ่มเมนูลอยบนมือถือ; POS เต็มความสูง `calc(100vh - 5.5rem)` / `lg:calc(100vh - 3rem)`)
+- Radius: input/การ์ดเล็ก `rounded-xl` (12), การ์ด `rounded-2xl` (16), modal/ฟอร์มใหญ่ `rounded-3xl` (24), ปุ่ม/ชิป/แบดจ์ `rounded-full`
+- เงา: `shadow-card` (teal 14%), `shadow-glow-teal`, `shadow-glow-gold`, `shadow-glow-coral`
+- เส้นแบ่ง section ใช้ `border-b-2 border-dashed border-primary/25` — เป็นเอกลักษณ์ของระบบ
 
 ---
 
-## Animations
+## Components (`src/components/ui.tsx`)
 
-### Confetti (Victory)
-- 10 pieces, varied sizes/shapes/colors, 3.2-4.5s fall with rotation
-
-### Crown Bounce
-- 1.5s infinite, 4-step keyframe with rotation wobble
-
-### Glow Pulse (Winner Card)
-- 2s infinite, opacity 0.5-1.0, scale 1.0-1.03
-
-### BOOM Pulse
-- 2s infinite, border/shadow oscillation
+- **Button** — pill, สูง 36/44/48px. `primary` (gold gradient) = การกระทำหลัก 1 ปุ่มต่อบริบท,
+  `secondary` (teal outline) = ทางเลือก, `ghost` = ในตาราง, `danger` = ลบ, `success` = ชำระเงิน
+- **Input / Select / Textarea** — สูง 44px (`h-11`), พื้น cream, `text-base` บนมือถือ (กัน iOS zoom),
+  `text-sm` บน desktop, focus ring 4px `primary/15`
+- **Field** — label 14px semibold, hint/error 12px ใต้ช่อง; error ใช้ `coral-dark`
+- **Card** — `rounded-2xl border border-primary/20 bg-surface-card shadow-card`
+- **PageHeader** — ชื่อหน้า + คำอธิบาย + ปุ่มหลักทางขวา + `back` + `badge`; ทุกหน้าต้องใช้ตัวนี้
+- **CardHeader** — หัวการ์ดเส้นประ + meta/action
+- **EmptyState** — บอกสิ่งที่เกิดขึ้นและทางออก (ไม่ใช่แค่ "ไม่มีข้อมูล")
+- **Badge** — tone: gray/teal/gold/coral/green/sky/red, 12px bold
+- **Pagination** — ปุ่ม 36px, `aria-label` ภาษาไทย, แสดง "หน้า x / y"
 
 ---
 
-## Do's and Don'ts
+## Patterns
 
-1. Do use colored glow shadows for interactive elements.
-2. Do use pill-shaped buttons consistently.
-3. Do use cream (#FFF8E7) for input surfaces.
-4. Don't use plain black shadows on interactive elements.
-5. Do celebrate game moments visually with matching brand colors.
-6. Do use dashed borders for section dividers.
-7. Don't make micro-interaction animations longer than 500ms.
-8. Do use left-border color accents on cards for state communication.
-9. Do ensure all touch targets are at least 72rpx.
-10. Do use view (not text) for emoji containers in WeChat mini-programs.
-11. Do use the retro folded-ribbon pattern for banner elements.
-12. Don't rely on percentage heights in pseudo-elements inside flex children.
+- **ตาราง desktop + การ์ดมือถือ**: ตาราง ≤5 คอลัมน์สลับที่ `lg` (1024px), ตาราง 6–8 คอลัมน์ (`/pawns`, `/manage`, `/reports`, `/products`)
+  สลับที่ `xl` (1280px) เพราะ sidebar กิน 256px — ต่ำกว่านั้นใช้การ์ดเพื่อไม่ให้ตารางถูกบีบ; หัวตาราง `bg-primary/[0.04]`, 12px semibold uppercase, คอลัมน์ตัวเลขชิดขวา
+- **ตัวกรอง**: ชิป pill — active `bg-primary-dark text-white`, ไม่ active `border-2 border-primary/20 bg-white`
+- **Modal**: bottom sheet บนมือถือ → center บน desktop, `role="dialog" aria-modal="true"`,
+  ปิดด้วยการกดฉากหลัง/ปุ่ม X, ปุ่มหลักอยู่ขวาล่าง
+- **เงิน**: `formatBaht` เท่านั้น, ลบนำด้วย `−`, รายรับ `+`, ใช้ `text-coral-dark` เฉพาะยอดติดลบ
+  ไม่ใช้สีเขียว/แดงกับทุกตัวเลขจนตาล้า
+
+---
+
+## Accessibility
+
+- เป้ากดขั้นต่ำ 44px (ปุ่ม/ช่องกรอก/เมนู); ปุ่มไอคอนในตาราง 36px
+- โฟกัสมองเห็นเสมอ: `outline: 2px solid primary-dark` (global rule)
+- `aria-current="page"` ที่เมนูที่ active, `aria-label` ที่ปุ่มไอคอน, `scope="col"` ที่หัวตาราง
+- เคารพ `prefers-reduced-motion` (ปิด animation)
+- ข้อความปกติต้อง ≥ 4.5:1 — ใช้ `zinc-600`/`zinc-700` เป็นข้อความรอง ไม่ใช้ `zinc-400`
+
+---
+
+## Do / Don't
+
+1. **Do** ใช้ `PageHeader` และ `Card` กลางทุกหน้า — ห้ามเขียนหัวหน้าใหม่เอง
+2. **Do** ให้ตัวเลขเงินมี `tabular-nums` และชิดขวาในตาราง
+3. **Do** ใช้ `h-11` กับช่องกรอกและปุ่มบนมือถือ
+4. **Don't** ใส่แถบสีหนา (`border-l-8`) ข้างการ์ดเป็น decoration
+5. **Don't** ใช้ gradient teal + ตัวอักษรขาวกับข้อความขนาดเล็ก (คอนทราสต์ไม่ผ่าน) — ใช้ `primary-dark` ทึบ
+6. **Don't** ซ้อนการ์ดในการ์ด หรือใส่ขอบ 2px ทุกที่; 1px + เงาเพียงพอ
+7. **Don't** ใช้ `text-[10px]` / `text-[11px]` กับข้อความไทย

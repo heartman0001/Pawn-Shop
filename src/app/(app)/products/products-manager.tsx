@@ -16,7 +16,7 @@ import {
 import { addProduct, deleteProduct, setQuantity, updatePrices } from "@/app/actions/products";
 import { PRODUCT_CATEGORIES, categoryRank } from "@/lib/categories";
 import { formatBaht, PRODUCT_IMAGE_UPLOAD_HINT } from "@/lib/format";
-import { Badge, Button, Field, Input, Select } from "@/components/ui";
+import { Badge, Button, Field, Input, PageHeader, Select } from "@/components/ui";
 import { cn } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { PageSizeSelector } from "@/components/page-size-selector";
@@ -161,14 +161,10 @@ export function ProductsManager({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-primary-dark">
-          สต็อกสินค้า
-        </h1>
-        <p className="text-sm font-medium text-zinc-500">
-          เพิ่มสินค้า / แนบรูปจากเครื่อง / ปรับจำนวน-ราคา / ลบสินค้า
-        </p>
-      </div>
+      <PageHeader
+        title="สต็อกสินค้า"
+        description="เพิ่มสินค้า / แนบรูปจากเครื่อง / ปรับจำนวน-ราคา / ลบสินค้า"
+      />
 
       {message && (
         <p className="rounded-full bg-primary-dark px-5 py-2.5 text-sm font-bold text-white shadow-glow-teal">
@@ -182,7 +178,7 @@ export function ProductsManager({
       )}
 
       {/* ฟอร์มเพิ่มสินค้า */}
-      <div className="rounded-3xl border-2 border-primary/15 bg-white p-5 shadow-card">
+      <div className="rounded-3xl border border-primary/20 bg-white p-5 shadow-card">
         <h2 className="mb-4 flex items-center gap-2 border-b-2 border-dashed border-primary/25 pb-2 text-sm font-extrabold uppercase tracking-wide text-primary-dark">
           <PackagePlus className="h-4 w-4 text-primary" /> เพิ่มสินค้าใหม่
         </h2>
@@ -214,7 +210,7 @@ export function ProductsManager({
                   <span className="text-xs font-bold text-primary-dark">
                     คลิกเพื่อแนบรูปจากเครื่อง
                   </span>
-                  <span className="px-3 text-center text-[11px] text-zinc-400">
+                  <span className="px-3 text-center text-xs text-zinc-500">
                     {PRODUCT_IMAGE_UPLOAD_HINT}
                   </span>
                 </>
@@ -318,25 +314,24 @@ export function ProductsManager({
       </div>
 
       {/* ตารางสินค้า — mobile: card / desktop: table */}
-      <div className="overflow-x-auto rounded-2xl border-2 border-primary/10 bg-surface-card shadow-card">
+      <div className="xl:overflow-x-auto xl:rounded-2xl xl:border xl:border-primary/15 xl:bg-surface-card xl:shadow-card">
         {/* Desktop: table */}
-        <div className="hidden divide-y divide-zinc-100 sm:block">
+        <div className="hidden divide-y divide-zinc-100 xl:block">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
-                <th className="px-4 py-3 font-bold">สินค้า</th>
-                <th className="px-4 py-3 font-bold">ราคา</th>
-                <th className="px-4 py-3 font-bold">สต็อก</th>
-                <th className="px-4 py-3 font-bold">สถานะ</th>
-                <th className="px-4 py-3 text-right font-bold">จัดการ</th>
+              <tr className="border-b border-primary/15 bg-primary/[0.04] text-left text-xs text-zinc-600">
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สินค้า</th>
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">ราคา</th>
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สต็อก</th>
+                <th scope="col" className="px-4 py-3 font-semibold uppercase tracking-wide">สถานะ</th>
+                <th scope="col" className="px-4 py-3 text-right font-semibold uppercase tracking-wide">จัดการ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-zinc-400">
-                    ยังไม่มีสินค้า — เพิ่มสินค้าแรกด้านบน หรือรัน{" "}
-                    <code>npm run db:seed</code>
+                  <td colSpan={5} className="px-4 py-10 text-center text-zinc-500">
+                    ยังไม่มีสินค้า — เพิ่มสินค้าจากฟอร์มด้านบน
                   </td>
                 </tr>
               )}
@@ -357,7 +352,7 @@ export function ProductsManager({
                       </span>
                       <div className="min-w-0">
                         <p className="truncate font-bold">{p.name}</p>
-                        <p className="text-xs text-zinc-400">{p.category}</p>
+                        <p className="text-xs text-zinc-500">{p.category}</p>
                       </div>
                     </div>
                   </td>
@@ -375,7 +370,7 @@ export function ProductsManager({
                         <p className="font-extrabold text-zinc-800">
                           {formatBaht(p.sellPrice)}
                         </p>
-                        <p className="text-xs text-zinc-400">
+                        <p className="text-xs text-zinc-500">
                           ทุน {formatBaht(p.costPrice)}
                         </p>
                       </div>
@@ -442,7 +437,7 @@ export function ProductsManager({
                           </Button>
                           <button
                             onClick={() => setConfirmDeleteId(p.id)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-coral/10 hover:text-coral-dark"
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-coral/60 transition-colors hover:bg-coral/10 hover:text-coral-dark"
                             title="ลบสินค้า"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -458,16 +453,16 @@ export function ProductsManager({
         </div>
 
         {/* Mobile: card stack */}
-        <div className="space-y-3 p-3 sm:hidden">
+        <div className="grid gap-3 py-3 sm:grid-cols-2 xl:hidden">
           {products.length === 0 && (
-            <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
+            <div className="rounded-2xl border border-dashed border-primary/20 bg-surface-card px-4 py-10 text-center text-sm text-zinc-500 sm:col-span-2">
               ยังไม่มีสินค้า — เพิ่มสินค้าแรกด้านบน
             </div>
           )}
           {pagedProducts.map((p) => (
             <div
               key={p.id}
-              className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card"
+              className="rounded-2xl border border-primary/15 bg-surface-card p-4 shadow-card"
             >
               {/* header: รูป + ชื่อ + สถานะ */}
               <div className="flex items-center gap-3">
@@ -484,7 +479,7 @@ export function ProductsManager({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold">{p.name}</p>
-                  <p className="text-xs text-zinc-400">{p.category}</p>
+                  <p className="text-xs text-zinc-500">{p.category}</p>
                 </div>
                 {p.quantity <= 0 ? (
                   <Badge tone="coral">หมด</Badge>
@@ -499,7 +494,7 @@ export function ProductsManager({
               <dl className="mt-3 space-y-1.5 text-sm">
                 {editing === p.id ? (
                   <div className="flex items-center justify-between gap-2">
-                    <dt className="text-zinc-400">แก้ไขราคา</dt>
+                    <dt className="text-zinc-500">แก้ไขราคา</dt>
                     <dd>
                       <PriceEditor
                         product={p}
@@ -513,19 +508,19 @@ export function ProductsManager({
                 ) : (
                   <>
                     <div className="flex items-center justify-between gap-2">
-                      <dt className="text-zinc-400">ราคาขาย</dt>
+                      <dt className="text-zinc-500">ราคาขาย</dt>
                       <dd className="font-extrabold text-zinc-800">
                         {formatBaht(p.sellPrice)}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <dt className="text-zinc-400">ต้นทุน</dt>
+                      <dt className="text-zinc-500">ต้นทุน</dt>
                       <dd className="text-zinc-700">{formatBaht(p.costPrice)}</dd>
                     </div>
                   </>
                 )}
                 <div className="flex items-center justify-between gap-2">
-                  <dt className="text-zinc-400">สต็อก</dt>
+                  <dt className="text-zinc-500">สต็อก</dt>
                   <dd>
                     <div className="flex items-center gap-1.5">
                       <QtyBtn
@@ -581,7 +576,7 @@ export function ProductsManager({
                     </Button>
                     <button
                       onClick={() => setConfirmDeleteId(p.id)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-coral/10 hover:text-coral-dark"
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-coral/60 transition-colors hover:bg-coral/10 hover:text-coral-dark"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

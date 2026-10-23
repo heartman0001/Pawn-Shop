@@ -6,7 +6,7 @@ export default function Loading() {
         aria-hidden="true"
       />
       <p className="text-sm font-bold text-primary-dark">กำลังโหลดข้อมูล…</p>
-      <p className="text-xs font-medium text-zinc-400">
+      <p className="text-xs font-medium text-zinc-500">
         ร้านรับจำนำ — ระบบจัดการ &amp; POS
       </p>
     </div>

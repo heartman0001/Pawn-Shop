@@ -84,7 +84,11 @@ export async function deleteIncome(
     revalidatePath("/");
     return { ok: true, deletedId: input.id };
   } catch (error) {
-    if (error instanceof Error && "code" in error && (error as any).code === "P2025") {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "P2025"
+    ) {
       return { ok: false, error: "ไม่พบรายการรายรับ" };
     }
     return {

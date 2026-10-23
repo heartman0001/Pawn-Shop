@@ -24,7 +24,7 @@ export function Pagination({
         onClick={() => onPageChange(Math.max(page - 1, 1))}
         disabled={page <= 1}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-11 w-11 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark sm:h-9 sm:w-9",
           page <= 1 && "pointer-events-none opacity-40"
         )}
       >
@@ -39,7 +39,7 @@ export function Pagination({
         onClick={() => onPageChange(Math.min(page + 1, totalPages))}
         disabled={page >= totalPages}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-11 w-11 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark sm:h-9 sm:w-9",
           page >= totalPages && "pointer-events-none opacity-40"
         )}
       >

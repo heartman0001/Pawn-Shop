@@ -12,12 +12,12 @@ export function PageSizeSelector({
   onChange: (size: number) => void;
 }) {
   return (
-    <label className="flex items-center gap-1.5 text-xs text-zinc-500">
-      แสดง
+    <label className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-zinc-500">
+      <span className="hidden sm:inline">แสดง</span>
       <Select
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-8 w-16 px-2 text-xs"
+        className="h-11 w-16 px-2 text-base sm:h-8 sm:text-xs"
         aria-label="จำนวนรายการต่อหน้า"
       >
         {PAGE_SIZE_OPTIONS.map((n) => (
@@ -26,7 +26,7 @@ export function PageSizeSelector({
           </option>
         ))}
       </Select>
-      ต่อหน้า
+      <span className="hidden sm:inline">ต่อหน้า</span>
     </label>
   );
 }

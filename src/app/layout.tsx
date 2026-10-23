@@ -1,12 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// ฟอนต์หลักของระบบ: Noto Sans Thai (มีหัว อ่านง่ายทั้งไทยและเลขละติน)
+// ใช้ variable font ไฟล์เดียว ครอบน้ำหนัก 400–800 ที่ระบบใช้จริง
+const notoSansThai = Noto_Sans_Thai({
+  variable: "--font-noto-thai",
+  subsets: ["thai", "latin"],
+  display: "swap",
 });
 
+// ฟอนต์ตัวเลข/รหัสอ้างอิง (เลขสัญญา, เลขใบเสร็จ) — ความกว้างเท่ากันทุกตัว
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -30,7 +34,7 @@ export default function RootLayout({
   return (
     <html
       lang="th"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${notoSansThai.variable} ${geistMono.variable} h-full antialiased`}
       data-theme="light"
     >
       <head>

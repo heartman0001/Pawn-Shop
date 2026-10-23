@@ -14,7 +14,7 @@ export function LoginForm() {
   return (
     <form
       action={action}
-      className="rounded-3xl border-2 border-primary/20 bg-cream p-6 shadow-card"
+      className="rounded-3xl border border-primary/20 bg-cream p-6 shadow-card"
     >
       <Field label="รหัสผ่าน / PIN" required>
         <div className="relative">
@@ -30,7 +30,7 @@ export function LoginForm() {
         </div>
       </Field>
       {state?.error && (
-        <p className="mt-3 rounded-xl bg-coral/10 px-3 py-2 text-sm font-medium text-coral-dark">
+        <p role="alert" className="mt-3 rounded-xl bg-coral/10 px-3 py-2 text-sm font-semibold text-coral-dark">
           {state.error}
         </p>
       )}

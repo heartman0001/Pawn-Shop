@@ -35,7 +35,20 @@ const NAV_LINKS = [
 
 const DESKTOP_QUERY = "(min-width: 1024px)"; // ตรงกับ breakpoint lg ของ Tailwind
 
+// 4 เมนูที่ใช้บ่อยสุดบนมือถือ — ที่เหลืออยู่ในปุ่ม "เพิ่มเติม"
+const BOTTOM_LINKS = [
+  { href: "/", label: "แดชบอร์ด", icon: LayoutDashboard },
+  { href: "/pos", label: "ขายหน้าร้าน", icon: Store },
+  { href: "/pawns", label: "สัญญา", icon: HandCoins },
+  { href: "/customers", label: "ลูกค้า", icon: Users },
+];
+
+function isActivePath(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+}
+
 export function AppSidebar() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const close = () => setOpen(false);
@@ -44,16 +57,15 @@ export function AppSidebar() {
   // เพราะ CSS bundle ที่ browser แคชไว้อาจ stale ทำให้ responsive class ไม่ทำงาน
   useEffect(() => {
     const mq = window.matchMedia(DESKTOP_QUERY);
-    const update = () => setIsDesktop(mq.matches);
+    const update = () => {
+      setIsDesktop(mq.matches);
+      // ขยายเป็น desktop = ปิด drawer ทิ้งในจังหวะเดียวกัน (ไม่ต้องใช้ effect ที่สอง)
+      if (mq.matches) setOpen(false);
+    };
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
-
-  // ปิด drawer อัตโนมัติเมื่อขยายเป็นจอ desktop
-  useEffect(() => {
-    if (isDesktop) setOpen(false);
-  }, [isDesktop]);
 
   // ปิด drawer ด้วยปุ่ม Escape
   useEffect(() => {
@@ -79,22 +91,9 @@ export function AppSidebar() {
     <>
       {/* ===== Sidebar ถาวร (จอใหญ่ ≥1024px) — เรนเดอร์เฉพาะ desktop ===== */}
       {isDesktop && (
-        <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r-2 border-dashed border-primary/25 bg-surface-card">
+        <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-primary/15 bg-surface-card">
           <SidebarContent />
         </aside>
-      )}
-
-      {/* ===== ปุ่ม burger ลอยปุ่มเดียว (มือถือ) — ไม่มีแถบ/พื้นหลังบังเนื้อหา ===== */}
-      {!isDesktop && (
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? "ปิดเมนู" : "เปิดเมนู"}
-          aria-expanded={open}
-          className="fixed right-4 top-4 z-60 flex h-11 w-11 items-center justify-center rounded-full border-2 border-primary/20 bg-surface-card text-primary-dark shadow-card transition-colors hover:bg-primary/10"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
       )}
 
       {/* ===== Drawer (มือถือ) — เลื่อนทับเนื้อหา ไม่มีฉากมืดบังจอหลัก ===== */}
@@ -106,11 +105,78 @@ export function AppSidebar() {
             role="dialog"
             aria-modal="true"
             aria-label="เมนูนำทาง"
-            className="absolute inset-y-0 left-0 flex h-full w-72 max-w-[85vw] animate-slide-in-left flex-col border-r-2 border-dashed border-primary/25 bg-surface-card shadow-card"
+            className="absolute inset-y-0 left-0 flex h-full w-72 max-w-[85vw] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] animate-slide-in-left flex-col border-r border-primary/15 bg-surface-card shadow-card"
           >
+            <button
+              type="button"
+              onClick={close}
+              aria-label="ปิดเมนู"
+              className="absolute right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] flex h-10 w-10 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark"
+            >
+              <X className="h-5 w-5" />
+            </button>
             <SidebarContent onNavigate={close} />
           </div>
         </div>
+      )}
+
+      {/* ===== แถบนำทางล่าง (มือถือ/แท็บเล็ต < lg) ===== */}
+      {!isDesktop && (
+        <nav
+          aria-label="เมนูหลัก (มือถือ)"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-primary/15 bg-surface-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+        >
+          <ul className="mx-auto flex max-w-lg items-stretch">
+            {BOTTOM_LINKS.map(({ href, label, icon: Icon }) => {
+              const active = isActivePath(pathname, href);
+              return (
+                <li key={href} className="min-w-0 flex-1">
+                  <Link
+                    href={href}
+                    onClick={close}
+                    aria-current={active ? "page" : undefined}
+                    className="flex h-16 flex-col items-center justify-center gap-1 px-0.5"
+                  >
+                    <span
+                      className={cn(
+                        "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+                        active ? "bg-primary/15 text-primary-dark" : "text-zinc-500"
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span
+                      className={cn(
+                        "max-w-full truncate text-xs leading-none",
+                        active
+                          ? "font-bold text-primary-dark"
+                          : "font-semibold text-zinc-600"
+                      )}
+                    >
+                      {label}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+            <li className="min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                aria-label="เปิดเมนูทั้งหมด"
+                aria-expanded={open}
+                className="flex h-16 w-full flex-col items-center justify-center gap-1 px-0.5"
+              >
+                <span className="flex h-7 w-12 items-center justify-center rounded-full text-zinc-500">
+                  <Menu className="h-5 w-5" />
+                </span>
+                <span className="max-w-full truncate text-xs font-semibold leading-none text-zinc-600">
+                  เพิ่มเติม
+                </span>
+              </button>
+            </li>
+          </ul>
+        </nav>
       )}
     </>
   );
@@ -128,11 +194,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       {/* โลโก้ */}
-      <div className="flex h-16 shrink-0 items-center gap-2 border-b-2 border-dashed border-primary/20 px-4">
+      <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-primary/10 px-4">
         <Link
           href="/"
           onClick={onNavigate}
-          className="flex min-w-0 items-center gap-2 font-extrabold tracking-tight text-primary-dark"
+          className="flex min-w-0 items-center gap-2.5 font-extrabold tracking-tight text-primary-dark"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-b from-accent-light to-accent shadow-glow-gold">
             <img
@@ -141,13 +207,20 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               className="h-full w-full object-cover"
             />
           </span>
-          <span className="truncate text-base">PomJame Shop</span>
+          <span className="min-w-0">
+            <span className="block truncate text-[0.9375rem] leading-tight">
+              PomJame Shop
+            </span>
+            <span className="block truncate text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              ร้านรับจำนำ
+            </span>
+          </span>
         </Link>
       </div>
 
       {/* เมนู */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <ul className="space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="เมนูหลัก">
+        <ul className="space-y-0.5">
           {NAV_LINKS.map(({ href, label, icon: Icon }) => {
             const active = isActive(href);
             return (
@@ -156,23 +229,27 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   href={href}
                   onClick={onNavigate}
                   prefetch={false} // <-- ปิดการโหลดล่วงหน้าเพื่อทดสอบ Loading
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-bold transition-colors",
+                    "relative flex min-h-11 items-center gap-3 rounded-xl px-3.5 py-2.5 text-[0.9375rem] font-semibold transition-colors",
                     active
-                      ? "bg-primary/10 text-primary-dark"
-                      : "text-zinc-600 hover:bg-primary/5 hover:text-primary-dark"
+                      ? "bg-primary/10 font-bold text-primary-dark"
+                      : "text-zinc-700 hover:bg-primary/5 hover:text-primary-dark"
                   )}
                 >
+                  {active && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-primary"
+                    />
+                  )}
                   <Icon
                     className={cn(
                       "h-5 w-5 shrink-0",
-                      active ? "text-primary" : "text-zinc-400"
+                      active ? "text-primary" : "text-zinc-500"
                     )}
                   />
                   <span className="truncate">{label}</span>
-                  {active && (
-                    <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-primary shadow-glow-teal" />
-                  )}
                 </Link>
               </li>
             );
@@ -181,11 +258,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* ออกจากระบบ */}
-      <div className="shrink-0 border-t-2 border-dashed border-primary/15 p-3">
+      <div className="shrink-0 border-t border-primary/10 p-3">
         <form action={logout}>
           <button
             type="submit"
-            className="flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-bold text-coral-dark transition-colors hover:bg-coral/10"
+            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-[0.9375rem] font-semibold text-coral-dark transition-colors hover:bg-coral/10"
           >
             <LogOut className="h-5 w-5 shrink-0 text-coral" />
             ออกจากระบบ

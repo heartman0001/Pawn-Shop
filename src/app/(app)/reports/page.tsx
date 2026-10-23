@@ -8,16 +8,13 @@ import {
   formatBaht,
   formatDate,
   formatDateTime,
-  INCOME_CATEGORY_LABEL,
   PAYMENT_METHOD_LABEL,
 } from "@/lib/format";
-import type { IncomeCategory } from "@/lib/format";
 import type { PaymentMethod } from "@prisma/client";
-import { Badge, Button, Card, Input } from "@/components/ui";
+import { Badge, Button, Card, Input, PageHeader } from "@/components/ui";
 import { cn } from "@/components/ui";
-import { SaleItemsAccordion, type SaleItemRow } from "./sale-items-accordion";
-import { MANUAL_INCOME_CATEGORY_LABEL, MANUAL_INCOME_CATEGORY_TONE } from "@/lib/format";
-import { ManualIncomeCategory } from "@prisma/client";
+import { SaleItemsAccordion, type SaleRow } from "./sale-items-accordion";
+import { MANUAL_INCOME_CATEGORY_LABEL } from "@/lib/format";
 
 export const metadata = { title: "รายงานรายรับ — ร้านรับจำนำ POS" };
 
@@ -25,16 +22,14 @@ type ReportSearchParams = {
   from?: string;
   to?: string;
   all?: string;
-  // pagination แยกหน้าของแต่ละตาราง (5 แถว/หน้า)
-  pp?: string; // บิลขาย POS
-  rp?: string; // ไถ่ถอน
-  np?: string; // ต่อดอกเบี้ย
-  ip?: string; // รายรับอื่นๆ
-  ep?: string; // รายจ่าย
+  // ตัวกรองประเภทรายการในรายการรวม: all | pos | redeem | renew | income | expense
+  type?: string;
+  // หน้าของรายการรวม (20 แถว/หน้า)
+  p?: string;
 };
 
-// จำนวนแถวต่อหน้าของแต่ละตารางในรายงาน
-const PAGE_SIZE = 5;
+// จำนวนแถวต่อหน้าของรายการรวม
+const PAGE_SIZE = 20;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -76,20 +71,15 @@ export default async function ReportsPage({
   const presetLink = (query: string) => `/reports?${query}`;
 
   // ------------------------------------------------------------------
-  // pagination รายตาราง — ลิงก์เปลี่ยนหน้าแบบ URL (เหมือนหน้า dashboard)
+  // ตัวกรองประเภท + pagination ของรายการรวม — state อยู่ใน URL
   // ------------------------------------------------------------------
-  const parsePage = (v?: string) => {
-    const n = Number(v);
-    return Number.isInteger(n) && n > 0 ? n : 1;
-  };
-  const pages = {
-    pos: parsePage(sp.pp),
-    redeem: parsePage(sp.rp),
-    renew: parsePage(sp.np),
-    income: parsePage(sp.ip),
-    expense: parsePage(sp.ep),
-  };
-  const pageHref = (key: keyof typeof pages, page: number) => {
+  const activeType: ReportType =
+    REPORT_TYPE_OPTIONS.find((opt) => opt.value === sp.type)?.value ?? "all";
+  const requestedPage = Number(sp.p);
+  const page =
+    Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+  const reportHref = (type: ReportType, targetPage = 1) => {
     const q = new URLSearchParams();
     // คงค่าตัวกรองช่วงวันที่ไว้
     if (isAll) q.set("all", "1");
@@ -97,13 +87,8 @@ export default async function ReportsPage({
       if (sp.from) q.set("from", sp.from);
       if (sp.to) q.set("to", sp.to);
     }
-    // คงหน้าปัจจุบันของตารางอื่นๆ ไว้
-    const next = { ...pages, [key]: page };
-    if (next.pos > 1) q.set("pp", String(next.pos));
-    if (next.redeem > 1) q.set("rp", String(next.redeem));
-    if (next.renew > 1) q.set("np", String(next.renew));
-    if (next.income > 1) q.set("ip", String(next.income));
-    if (next.expense > 1) q.set("ep", String(next.expense));
+    if (type !== "all") q.set("type", type);
+    if (targetPage > 1) q.set("p", String(targetPage));
     const qs = q.toString();
     return qs ? `/reports?${qs}` : "/reports";
   };
@@ -194,50 +179,104 @@ export default async function ReportsPage({
 
   const grandTotal = posTotal + redeemTotal + renewTotal + manualIncomeTotal;
   const grossProfitFromManualIncomes = manualIncomeTotal - manualIncomeCostTotal;
-  const netTotal = grandTotal - expenseTotal;
+  // เงินคงเหลือ (สุทธิ) = รายรับทั้งหมด − ต้นทุนของรายรับที่บันทึกเอง − รายจ่ายที่บันทึกไว้
+  // ต้นทุน (costPrice) ของ ManualIncome ไม่ได้ถูกสร้างเป็น Expense ตอนบันทึก
+  // จึงต้องหักที่นี่ ไม่งั้นยอดสุทธิจะสูงเกินจริงเท่ากับต้นทุนรวมของรายรับอื่น
+  const netTotal = grandTotal - manualIncomeCostTotal - expenseTotal;
+  // ใช้สตริงชุดเดียวกันทั้งยอดใหญ่และสมการ กันเครื่องหมายลบแสดงไม่ตรงกัน
+  const netTotalLabel =
+    netTotal < 0 ? `−${formatBaht(Math.abs(netTotal))}` : formatBaht(netTotal);
 
   // ------------------------------------------------------------------
-  // pagination: จำนวนหน้า + แถวที่จะแสดงของแต่ละตาราง (5 แถว/หน้า)
-  // ยอดรวมในการ์ดสรุปคิดจาก "ทั้งหมด" ไม่ใช่เฉพาะหน้าที่แสดง
+  // รวมทุกประเภทธุรกรรมเป็นรายการเดียว เรียงตามเวลา
+  // ยอดรวมด้านบนยังคิดจาก "ทั้งหมด" ไม่ใช่เฉพาะแถวที่แสดง
   // ------------------------------------------------------------------
-  const totalPagesOf = (n: number) => Math.max(1, Math.ceil(n / PAGE_SIZE));
-  const posTotalPages = totalPagesOf(sales.length);
-  const redeemTotalPages = totalPagesOf(redeems.length);
-  const renewTotalPages = totalPagesOf(renewals.length);
-  const incomeTotalPages = totalPagesOf(manualIncomes.length);
-  const expenseTotalPages = totalPagesOf(expenses.length);
-  const posPage = Math.min(pages.pos, posTotalPages);
-  const redeemPage = Math.min(pages.redeem, redeemTotalPages);
-  const renewPage = Math.min(pages.renew, renewTotalPages);
-  const incomePage = Math.min(pages.income, incomeTotalPages);
-  const expensePage = Math.min(pages.expense, expenseTotalPages);
-  const slicePage = <T,>(arr: T[], page: number) =>
-    arr.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const posRows = slicePage(sales, posPage);
-  const redeemRows = slicePage(redeems, redeemPage);
-  const renewRows = slicePage(renewals, renewPage);
-  const incomeRows = slicePage(manualIncomes, incomePage);
-  const expenseRows = slicePage(expenses, expensePage);
+  const records: ReportRecord[] = [
+    ...sales.map<ReportRecord>((s) => ({
+      id: `pos-${s.receiptNumber}`,
+      kind: "pos",
+      createdAt: s.createdAt,
+      reference: s.receiptNumber,
+      title: describeSale(s) || "ขายสินค้าหน้าร้าน",
+      method: s.paymentMethod,
+      amount: s.totalAmount,
+      direction: "in",
+      sale: s,
+    })),
+    ...redeems.map<ReportRecord>((r) => ({
+      id: `redeem-${r.id}`,
+      kind: "redeem",
+      createdAt: r.createdAt,
+      reference: r.contract.contractNumber,
+      title: r.contract.itemName,
+      detail: `เงินต้น ${formatBaht(r.principal)} · ดอกเบี้ย ${formatBaht(r.interest)}`,
+      method: r.paymentMethod,
+      amount: r.total,
+      direction: "in",
+    })),
+    ...renewals.map<ReportRecord>((r) => ({
+      id: `renew-${r.id}`,
+      kind: "renew",
+      createdAt: r.createdAt,
+      reference: r.contract.contractNumber,
+      title: r.contract.itemName,
+      detail: `ต่อดอกเบี้ยครั้งที่ ${r.roundNumber}`,
+      method: r.paymentMethod,
+      amount: r.interestAmount,
+      direction: "in",
+    })),
+    ...manualIncomes.map<ReportRecord>((r) => ({
+      id: `income-${r.id}`,
+      kind: "income",
+      createdAt: r.createdAt,
+      reference: MANUAL_INCOME_CATEGORY_LABEL[r.category] ?? r.category,
+      title: r.description,
+      detail: `ต้นทุน ${formatBaht(r.costPrice)} · กำไร ${formatBaht(r.amount - r.costPrice)}`,
+      amount: r.amount,
+      direction: "in",
+    })),
+    ...expenses.map<ReportRecord>((r) => ({
+      id: `expense-${r.id}`,
+      kind: "expense",
+      createdAt: r.createdAt,
+      reference:
+        r.contract?.contractNumber ??
+        EXPENSE_CATEGORY_LABEL[r.category] ??
+        r.category,
+      title: r.contract?.itemName ?? r.description,
+      detail: r.contract ? r.description : undefined,
+      amount: r.amount,
+      direction: "out",
+    })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  const countByType: Record<ReportType, number> = {
+    all: records.length,
+    pos: sales.length,
+    redeem: redeems.length,
+    renew: renewals.length,
+    income: manualIncomes.length,
+    expense: expenses.length,
+  };
+
+  const filtered =
+    activeType === "all" ? records : records.filter((r) => r.kind === activeType);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const rows = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   // ------------------------------------------------------------------
   // UI
   // ------------------------------------------------------------------
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-primary-dark">
-          รายงานรายรับ
-        </h1>
-        <p className="text-sm text-zinc-500">
-          เงินเข้าทุกช่องทาง: ขายหน้าร้าน (POS) · ไถ่ถอน · ต่อดอกเบี้ย — หักรายจ่าย
-          (เงินต้นที่จ่ายออกเมื่อรับจำนำ)
-          <span className="text-xs text-zinc-400">
-            {" "}
-            (เงินต้นที่คืนตอนไถ่ถอนคือเงินคืนทุน และเงินต้นที่จ่ายตอนรับจำนำนับเป็นรายจ่าย —
-            ตัวเลข “คงเหลือ” คือเงินจริงที่เหลือในร้าน)
-          </span>
-        </p>
-      </div>
+      <PageHeader
+        title="รายงานรายรับ"
+        description="เงินเข้าทุกช่องทาง — ขายหน้าร้าน · ไถ่ถอน · ต่อดอกเบี้ย · รายรับอื่น หักด้วยรายจ่ายที่บันทึกไว้"
+      />
 
       {/* ตัวกรองช่วงวันที่ */}
       <Card className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
@@ -258,10 +297,10 @@ export default async function ReportsPage({
               key={p.label}
               href={presetLink(p.q)}
               className={cn(
-                "rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors",
+                "inline-flex min-h-9 items-center rounded-full px-3.5 text-sm font-bold transition-colors",
                 p.active
-                  ? "bg-gradient-to-b from-primary-light to-primary text-white shadow-glow-teal"
-                  : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
+                  ? "bg-primary-dark text-white shadow-card"
+                  : "border-2 border-primary/20 bg-white text-zinc-700 hover:border-primary/40 hover:bg-primary/10 hover:text-primary-dark"
               )}
             >
               {p.label}
@@ -269,190 +308,195 @@ export default async function ReportsPage({
           ))}
         </div>
         <form
-          className="ml-auto flex flex-wrap items-end gap-2"
+          className="flex w-full flex-wrap items-end gap-2 xl:ml-auto xl:w-auto xl:flex-nowrap"
           action="/reports"
           method="get"
         >
-          <label className="text-xs font-semibold text-zinc-500">
+          <label className="flex min-w-0 flex-1 basis-36 flex-col gap-1 text-xs font-semibold text-zinc-600 xl:flex-none">
             ตั้งแต่
             <Input
               type="date"
               name="from"
               defaultValue={isAll ? "" : selFrom}
-              className="mt-0.5 h-9 w-36"
+              className="w-full sm:h-10 xl:w-40"
             />
           </label>
-          <label className="text-xs font-semibold text-zinc-500">
+          <label className="flex min-w-0 flex-1 basis-36 flex-col gap-1 text-xs font-semibold text-zinc-600 xl:flex-none">
             ถึง
             <Input
               type="date"
               name="to"
               defaultValue={isAll ? "" : selTo}
-              className="mt-0.5 h-9 w-36"
+              className="w-full sm:h-10 xl:w-40"
             />
           </label>
-          <Button type="submit" variant="secondary" className="h-9">
+          <Button
+            type="submit"
+            variant="secondary"
+            className="w-full sm:w-auto sm:h-10"
+          >
             <Filter className="h-4 w-4" /> กรอง
           </Button>
         </form>
       </Card>
 
-      {/* การ์ดสรุป */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        <SummaryCard
-          label="รายรับรวม"
-          value={formatBaht(grandTotal)}
-          sub={`${sales.length} บิลขาย · ${redeems.length} ครั้งไถ่ถอน · ${renewals.length} ครั้งต่อดอก${manualIncomes.length > 0 ? ` · ${manualIncomes.length} รายรับอื่น` : ""}`}
-          accent="gold"
-        />
-        <SummaryCard
-          label="ขายหน้าร้าน (POS)"
-          value={formatBaht(posTotal)}
-          sub={`ทั่วไป ${formatBaht(posRetailTotal)} · หลุดจำนำ ${formatBaht(posPawnTotal)}`}
-          accent="teal"
-        />
-        <SummaryCard
-          label="ไถ่ถอน"
-          value={formatBaht(redeemTotal)}
-          sub={`เงินต้นคืน ${formatBaht(redeemPrincipal)} · ดอกเบี้ย ${formatBaht(redeemInterest)}`}
-          accent="sky"
-        />
-        <SummaryCard
-          label="ต่อดอกเบี้ย"
-          value={formatBaht(renewTotal)}
-          sub={`${renewals.length} ครั้ง`}
-          accent="coral"
-        />
-        <SummaryCard
-          label="รายรับอื่นๆ"
-          value={formatBaht(manualIncomeTotal)}
-          sub={manualIncomes.length > 0 ? `${manualIncomes.length} รายการ · กำไรสุทธิ ${formatBaht(grossProfitFromManualIncomes)} (ต้นทุน ${formatBaht(manualIncomeCostTotal)})` : "ไม่มีรายการ"}
-          accent="green"
-        />
-        <SummaryCard
-          label="รายจ่าย"
-          value={`−${formatBaht(expenseTotal)}`}
-          sub={`${expenses.length} ครั้ง (เงินต้นรับจำนำ)`}
-          accent="red"
-        />
-      </div>
+      {/* สรุปปิดยอด — ตัวเลขที่ต้องการคือบรรทัดปิดท้ายของการคำนวณที่มาของมันเอง */}
+      <Card className="p-5">
+        <h2 className="text-sm font-extrabold uppercase tracking-wide text-primary-dark">
+          สรุปปิดยอด
+        </h2>
+        <dl className="mt-2 text-sm">
+          <LedgerRow
+            label="ขายหน้าร้าน (POS)"
+            sub={`${sales.length} บิล · ทั่วไป ${formatBaht(posRetailTotal)} · หลุดจำนำ ${formatBaht(posPawnTotal)}`}
+            value={formatBaht(posTotal)}
+          />
+          <LedgerRow
+            label="ไถ่ถอน"
+            sub={`${redeems.length} ครั้ง · เงินต้นคืน ${formatBaht(redeemPrincipal)} · ดอกเบี้ย ${formatBaht(redeemInterest)}`}
+            value={formatBaht(redeemTotal)}
+          />
+          <LedgerRow
+            label="ต่อดอกเบี้ย"
+            sub={`${renewals.length} ครั้ง`}
+            value={formatBaht(renewTotal)}
+          />
+          <LedgerRow
+            label="รายรับอื่นๆ"
+            sub={
+              manualIncomes.length > 0
+                ? `${manualIncomes.length} รายการ · กำไร ${formatBaht(grossProfitFromManualIncomes)} · ต้นทุน ${formatBaht(manualIncomeCostTotal)}`
+                : "ไม่มีรายการ"
+            }
+            value={formatBaht(manualIncomeTotal)}
+          />
+          <LedgerRow
+            label="รวมรายรับ"
+            value={formatBaht(grandTotal)}
+            emphasis
+          />
+          {manualIncomeCostTotal > 0 && (
+            <LedgerRow
+              label="หักต้นทุนรายรับอื่น"
+              sub="ต้นทุนของรายรับที่บันทึกเอง (ไม่ได้อยู่ในรายจ่าย)"
+              value={`−${formatBaht(manualIncomeCostTotal)}`}
+            />
+          )}
+          <LedgerRow
+            label="หักรายจ่ายที่บันทึกไว้"
+            sub={`${expenses.length} ครั้ง · เงินต้นรับจำนำ ค่าซ่อม และอื่นๆ`}
+            value={`−${formatBaht(expenseTotal)}`}
+          />
+        </dl>
 
-      {/* สุทธิ */}
-      <Card className="flex flex-wrap items-center gap-x-6 gap-y-2 border-l-8 border-l-success p-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-            เงินคงเหลือ (สุทธิ = รายรับ − รายจ่าย)
-          </p>
+        <div className="mt-3 flex flex-wrap items-end justify-between gap-3 border-t-2 border-dashed border-primary/25 pt-4">
+          <div>
+            <p className="text-sm font-bold text-zinc-600">เงินคงเหลือ (สุทธิ)</p>
+            <p className="mt-0.5 text-xs font-medium text-zinc-500">
+              {netTotal < 0
+                ? "ติดลบ — รายจ่ายมากกว่ารายรับในช่วงที่เลือก"
+                : "เงินจริงที่เหลือในร้าน หลังหักเงินต้นรับจำนำและต้นทุน"}
+            </p>
+          </div>
           <p
             className={cn(
-              "mt-0.5 text-2xl font-extrabold tracking-tight sm:text-3xl",
-              netTotal < 0 ? "text-error" : "text-success"
+              "shrink-0 text-3xl font-extrabold tabular-nums tracking-tight sm:text-4xl",
+              netTotal < 0 ? "text-error" : "text-zinc-900"
             )}
           >
-            {netTotal < 0 ? `−${formatBaht(Math.abs(netTotal))}` : formatBaht(netTotal)}
+            {netTotalLabel}
           </p>
-        </div>
-        <div className="text-sm font-medium text-zinc-500">
-          รายรับ {formatBaht(grandTotal)}
-          <span className="mx-2 text-zinc-300">−</span>
-          รายจ่าย {formatBaht(expenseTotal)}
         </div>
       </Card>
 
-      {/* ===== ขายหน้าร้าน ===== */}
-      <ReportSection
-        title={`บิลขายหน้าร้าน (${sales.length})`}
-        total={formatBaht(posTotal)}
-        tone="teal"
-        page={posPage}
-        totalPages={posTotalPages}
-        pageHref={(p) => pageHref("pos", p)}
-        mobile={
-          sales.length === 0 ? <EmptyCard /> : <SalesCards rows={posRows} />
-        }
-      >
-        {sales.length === 0 ? (
-          <EmptyRow />
-        ) : (
-          <SalesTable rows={posRows} />
-        )}
-      </ReportSection>
+      {/* ===== รายการในช่วงที่เลือก (ทุกประเภท เรียงตามเวลา) ===== */}
+      <Card className="overflow-hidden">
+        <div className="border-b-2 border-dashed border-primary/25 px-4 py-3 sm:px-5 sm:py-3.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-primary-dark">
+              รายการในช่วงที่เลือก
+            </h2>
+            <span className="text-xs font-semibold text-zinc-600">
+              {filtered.length} รายการ
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {REPORT_TYPE_OPTIONS.map((opt) => {
+              const active = opt.value === activeType;
+              return (
+                <Link
+                  key={opt.value}
+                  href={reportHref(opt.value)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex min-h-9 items-center rounded-full px-3.5 text-sm font-bold transition-colors",
+                    active
+                      ? "bg-primary-dark text-white shadow-card"
+                      : "border-2 border-primary/20 bg-white text-zinc-700 hover:border-primary/40 hover:bg-primary/10 hover:text-primary-dark"
+                  )}
+                >
+                  {opt.label}
+                  <span
+                    className={cn(
+                      "ml-1.5 text-xs font-semibold tabular-nums",
+                      active ? "text-white" : "text-zinc-500"
+                    )}
+                  >
+                    {countByType[opt.value]}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
 
-      {/* ===== ไถ่ถอน ===== */}
-      <ReportSection
-        title={`การไถ่ถอน (${redeems.length})`}
-        total={formatBaht(redeemTotal)}
-        tone="sky"
-        page={redeemPage}
-        totalPages={redeemTotalPages}
-        pageHref={(p) => pageHref("redeem", p)}
-        mobile={
-          redeems.length === 0 ? <EmptyCard /> : <RedeemCards rows={redeemRows} />
-        }
-      >
-        {redeems.length === 0 ? (
-          <EmptyRow />
+        {rows.length === 0 ? (
+          <div className="px-5 py-14 text-center">
+            <p className="text-sm font-bold text-zinc-700">
+              ไม่มีรายการในช่วงเวลานี้
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              ลองขยายช่วงวันที่ด้านบน หรือเปลี่ยนตัวกรองประเภท
+            </p>
+          </div>
         ) : (
-          <RedeemTable rows={redeemRows} />
-        )}
-      </ReportSection>
+          <>
+            {/* Desktop: ตารางเดียวทุกประเภท */}
+            <div className="hidden overflow-x-auto xl:block">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-primary/15 bg-primary/[0.04] text-left text-xs text-zinc-600">
+                    <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">วัน/เวลา</th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">เลขที่ / อ้างอิง</th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">รายการ</th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">ประเภท</th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold uppercase tracking-wide">ชำระ</th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-semibold uppercase tracking-wide">จำนวน</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {rows.map((record) => (
+                    <ReportTableRow key={record.id} record={record} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-      {/* ===== ต่อดอกเบี้ย ===== */}
-      <ReportSection
-        title={`การต่อดอกเบี้ย (${renewals.length})`}
-        total={formatBaht(renewTotal)}
-        tone="coral"
-        page={renewPage}
-        totalPages={renewTotalPages}
-        pageHref={(p) => pageHref("renew", p)}
-        mobile={
-          renewals.length === 0 ? <EmptyCard /> : <RenewCards rows={renewRows} />
-        }
-      >
-        {renewals.length === 0 ? (
-          <EmptyRow />
-        ) : (
-          <RenewTable rows={renewRows} />
+            {/* Mobile: การ์ดต่อรายการ */}
+            <div className="grid gap-3 p-3 sm:grid-cols-2 xl:hidden">
+              {rows.map((record) => (
+                <ReportMobileCard key={record.id} record={record} />
+              ))}
+            </div>
+          </>
         )}
-      </ReportSection>
 
-      {/* ===== รายรับอื่นๆ (บันทึกเอง) ===== */}
-      <ReportSection
-        title={`รายรับอื่นๆ — บันทึกเอง (${manualIncomes.length})`}
-        total={formatBaht(manualIncomeTotal)}
-        tone="green"
-        page={incomePage}
-        totalPages={incomeTotalPages}
-        pageHref={(p) => pageHref("income", p)}
-        mobile={
-          manualIncomes.length === 0 ? <EmptyCard /> : <ManualIncomeCards rows={incomeRows} />
-        }
-      >
-        {manualIncomes.length === 0 ? (
-          <EmptyRow />
-        ) : (
-          <ManualIncomeTableRows rows={incomeRows} />
-        )}
-      </ReportSection>
-
-      {/* ===== รายจ่าย ===== */}
-      <ReportSection
-        title={`รายจ่าย — เงินต้นที่จ่ายรับจำนำ (${expenses.length})`}
-        total={`−${formatBaht(expenseTotal)}`}
-        tone="red"
-        page={expensePage}
-        totalPages={expenseTotalPages}
-        pageHref={(p) => pageHref("expense", p)}
-        mobile={
-          expenses.length === 0 ? <EmptyCard /> : <ExpenseCards rows={expenseRows} />
-        }
-      >
-        {expenses.length === 0 ? (
-          <EmptyRow />
-        ) : (
-          <ExpenseTable rows={expenseRows} />
-        )}
-      </ReportSection>
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          hrefFor={(p) => reportHref(activeType, p)}
+        />
+      </Card>
     </div>
   );
 }
@@ -461,35 +505,143 @@ export default async function ReportsPage({
 // ส่วนประกอบย่อย
 // ---------------------------------------------------------------------------
 
-function SummaryCard({
+const REPORT_TYPE_OPTIONS = [
+  { value: "all", label: "ทั้งหมด" },
+  { value: "pos", label: "ขายหน้าร้าน" },
+  { value: "redeem", label: "ไถ่ถอน" },
+  { value: "renew", label: "ต่อดอกเบี้ย" },
+  { value: "income", label: "รายรับอื่น" },
+  { value: "expense", label: "รายจ่าย" },
+] as const;
+
+type ReportType = (typeof REPORT_TYPE_OPTIONS)[number]["value"];
+type ReportRecordKind = Exclude<ReportType, "all">;
+
+const REPORT_TYPE_LABEL: Record<ReportRecordKind, string> = {
+  pos: "ขายหน้าร้าน",
+  redeem: "ไถ่ถอน",
+  renew: "ต่อดอกเบี้ย",
+  income: "รายรับอื่น",
+  expense: "รายจ่าย",
+};
+
+/** รายการเดียวที่รวมทุกประเภทธุรกรรมไว้ด้วยกัน (ใช้ทั้งตารางและ card มือถือ) */
+type ReportRecord = {
+  id: string;
+  kind: ReportRecordKind;
+  createdAt: Date;
+  /** เลขที่ใบเสร็จ / เลขที่สัญญา / ชื่อหมวดของรายการที่ไม่มีเอกสาร */
+  reference: string;
+  title: string;
+  detail?: string;
+  method?: PaymentMethod;
+  amount: number;
+  direction: "in" | "out";
+  sale?: SaleRow;
+};
+
+function ReportTableRow({ record }: { record: ReportRecord }) {
+  return (
+    <tr className="hover:bg-primary/5">
+      <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
+        {formatDateTime(record.createdAt)}
+      </td>
+      <td className="whitespace-nowrap px-4 py-2.5 font-bold text-zinc-800">
+        {record.reference}
+      </td>
+      <td className="px-4 py-2.5">
+        <p className="text-zinc-700">{record.title}</p>
+        {record.detail && (
+          <p className="text-xs font-medium text-zinc-500">{record.detail}</p>
+        )}
+        {record.sale && (
+          <div className="mt-1">
+            <SaleItemsAccordion sale={record.sale} />
+          </div>
+        )}
+      </td>
+      <td className="whitespace-nowrap px-4 py-2.5 text-xs font-semibold text-zinc-500">
+        {REPORT_TYPE_LABEL[record.kind]}
+      </td>
+      <td className="px-4 py-2.5">
+        {record.method ? (
+          <MethodBadge method={record.method} />
+        ) : (
+          <span className="text-zinc-500">—</span>
+        )}
+      </td>
+      <td className="whitespace-nowrap px-4 py-2.5 text-right font-bold tabular-nums text-zinc-900">
+        {record.direction === "out" ? "−" : "+"}
+        {formatBaht(record.amount)}
+      </td>
+    </tr>
+  );
+}
+
+function ReportMobileCard({ record }: { record: ReportRecord }) {
+  return (
+    <ReportCard>
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-bold text-primary-dark">{record.reference}</span>
+        <span className="shrink-0 font-extrabold tabular-nums text-zinc-900">
+          {record.direction === "out" ? "−" : "+"}
+          {formatBaht(record.amount)}
+        </span>
+      </div>
+      <dl className="mt-3 space-y-1.5 text-sm">
+        <CardLine label="วัน/เวลา">{formatDateTime(record.createdAt)}</CardLine>
+        <CardLine label="รายการ">
+          <span className="block">{record.title}</span>
+          {record.detail && (
+            <span className="block text-xs font-medium text-zinc-500">
+              {record.detail}
+            </span>
+          )}
+        </CardLine>
+        <CardLine label="ประเภท">{REPORT_TYPE_LABEL[record.kind]}</CardLine>
+        {record.method && (
+          <CardLine label="ชำระ">
+            <MethodBadge method={record.method} />
+          </CardLine>
+        )}
+      </dl>
+      {record.sale && (
+        <div className="mt-2">
+          <SaleItemsAccordion sale={record.sale} />
+        </div>
+      )}
+    </ReportCard>
+  );
+}
+
+function LedgerRow({
   label,
-  value,
   sub,
-  accent,
+  value,
+  emphasis = false,
 }: {
   label: string;
-  value: string;
   sub?: string;
-  accent: "teal" | "gold" | "sky" | "coral" | "red" | "green";
+  value: string;
+  emphasis?: boolean;
 }) {
-  const bar = {
-    teal: "border-l-primary",
-    gold: "border-l-accent",
-    sky: "border-l-sky",
-    coral: "border-l-coral",
-    red: "border-l-error",
-    green: "border-l-success",
-  }[accent];
   return (
-    <Card className={`overflow-hidden border-l-8 p-4 ${bar}`}>
-      <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-        {label}
-      </p>
-      <p className="mt-1 text-2xl font-extrabold tracking-tight text-zinc-900 sm:text-3xl">
-        {value}
-      </p>
-      {sub && <p className="mt-1 text-xs font-medium text-zinc-400">{sub}</p>}
-    </Card>
+    <div
+      className={cn(
+        "flex items-baseline justify-between gap-4 py-2",
+        emphasis
+          ? "mt-1 border-t-2 border-dashed border-primary/25 pt-3 font-bold text-zinc-800"
+          : "text-zinc-700"
+      )}
+    >
+      <div className="min-w-0">
+        <dt className="font-semibold">{label}</dt>
+        {sub && (
+          <dd className="mt-0.5 text-xs font-medium text-zinc-500">{sub}</dd>
+        )}
+      </div>
+      <dd className="shrink-0 font-bold tabular-nums">{value}</dd>
+    </div>
   );
 }
 
@@ -508,99 +660,39 @@ function MethodBadge({ method }: { method: PaymentMethod }) {
   );
 }
 
-function ReportSection({
-  title,
-  total,
-  tone,
-  page,
-  totalPages,
-  pageHref,
-  mobile,
-  children,
-}: {
-  title: string;
-  total: string;
-  tone: "teal" | "sky" | "coral" | "red" | "green";
-  page: number;
-  totalPages: number;
-  pageHref: (page: number) => string;
-  mobile?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const dot = {
-    teal: "text-primary",
-    sky: "text-sky",
-    coral: "text-coral",
-    red: "text-error",
-    green: "text-success",
-  }[tone];
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-dashed border-primary/25 px-5 py-3.5">
-        <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-primary-dark">
-          <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
-          {title}
-        </h2>
-        <span className="text-base font-extrabold text-zinc-800">{total}</span>
-      </div>
-
-      {/* Desktop: table */}
-      <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead>
-            <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
-              <th className="px-4 py-2.5 font-medium">วัน/เวลา</th>
-              <th className="px-4 py-2.5 font-medium">เลขที่ / สัญญา</th>
-              <th className="px-4 py-2.5 font-medium">รายการ</th>
-              <th className="px-4 py-2.5 font-medium">ชำระ</th>
-              <th className="px-4 py-2.5 text-right font-medium">จำนวน</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">{children}</tbody>
-        </table>
-      </div>
-
-      {/* Mobile: card stack */}
-      {mobile && (
-        <div className="space-y-3 p-3 sm:hidden">{mobile}</div>
-      )}
-
-      <Pagination page={page} totalPages={totalPages} pageHref={pageHref} />
-    </Card>
-  );
-}
-
-// Pagination — เลย์เอาต์เดียวกับหน้า dashboard (ลิงก์เปลี่ยนหน้าแบบ URL)
+// Pagination — pager ตัวเดียวของรายการรวม (state ใน URL)
 function Pagination({
   page,
   totalPages,
-  pageHref,
+  hrefFor,
 }: {
   page: number;
   totalPages: number;
-  pageHref: (page: number) => string;
+  hrefFor: (page: number) => string;
 }) {
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-primary/25 px-5 py-3">
+    <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-primary/25 px-4 py-2.5">
       <Link
-        href={pageHref(Math.max(page - 1, 1))}
+        href={hrefFor(Math.max(page - 1, 1))}
+        aria-label="หน้าก่อนหน้า"
         aria-disabled={page <= 1}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary-dark",
           page <= 1 && "pointer-events-none opacity-40"
         )}
       >
         <ChevronLeft className="h-4 w-4" />
       </Link>
-      <span className="text-xs font-bold text-zinc-500">
-        หน้า {page} / {totalPages}
+      <span className="text-xs font-bold text-zinc-600">
+        หน้า {page} / {totalPages} · {PAGE_SIZE} รายการ/หน้า
       </span>
       <Link
-        href={pageHref(Math.min(page + 1, totalPages))}
+        href={hrefFor(Math.min(page + 1, totalPages))}
+        aria-label="หน้าถัดไป"
         aria-disabled={page >= totalPages}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary-dark",
           page >= totalPages && "pointer-events-none opacity-40"
         )}
       >
@@ -610,30 +702,9 @@ function Pagination({
   );
 }
 
-function EmptyRow() {
-  return (
-    <tr>
-      <td
-        colSpan={5}
-        className="px-4 py-12 text-center text-sm text-zinc-400"
-      >
-        ไม่มีรายการในช่วงเวลานี้
-      </td>
-    </tr>
-  );
-}
-
-function EmptyCard() {
-  return (
-    <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
-      ไม่มีรายการในช่วงเวลานี้
-    </div>
-  );
-}
-
 function ReportCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card">
+    <div className="rounded-2xl border border-primary/15 bg-surface-card p-4 shadow-card">
       {children}
     </div>
   );
@@ -648,13 +719,13 @@ function CardLine({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <dt className="shrink-0 text-zinc-400">{label}</dt>
+      <dt className="shrink-0 text-zinc-500">{label}</dt>
       <dd className="text-right text-zinc-700">{children}</dd>
     </div>
   );
 }
 
-// ---- ตารางบิลขาย ----
+// ---- สรุปรายการของบิลขาย (ใช้เป็นชื่อรายการในตารางรวม) ----
 function describeSale(r: {
   items: { productId: string | null; quantity: number }[];
 }): string {
@@ -670,425 +741,4 @@ function describeSale(r: {
   ]
     .filter(Boolean)
     .join(" + ");
-}
-
-function SalesTable({
-  rows,
-}: {
-  rows: {
-    receiptNumber: string;
-    createdAt: Date;
-    paymentMethod: PaymentMethod;
-    totalAmount: number;
-    items: SaleItemRow[];
-  }[];
-}) {
-  return (
-    <>
-      {rows.map((r) => {
-        const desc = describeSale(r);
-        return (
-          <tr key={r.receiptNumber} className="hover:bg-primary/5">
-            <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
-              {formatDateTime(r.createdAt)}
-            </td>
-            <td className="px-4 py-2.5 font-bold text-zinc-800">
-              {r.receiptNumber}
-            </td>
-            <td className="px-4 py-2.5 text-zinc-600">
-              {desc || "—"}
-              <SaleItemsAccordion sale={r} />
-            </td>
-            <td className="px-4 py-2.5">
-              <MethodBadge method={r.paymentMethod} />
-            </td>
-            <td className="px-4 py-2.5 text-right font-extrabold text-success">
-              {formatBaht(r.totalAmount)}
-            </td>
-          </tr>
-        );
-      })}
-    </>
-  );
-}
-
-// ---- การ์ดบิลขาย (mobile) ----
-function SalesCards({
-  rows,
-}: {
-  rows: Parameters<typeof SalesTable>[0]["rows"];
-}) {
-  return (
-    <>
-      {rows.map((r) => (
-        <ReportCard key={r.receiptNumber}>
-          <div className="flex items-start justify-between gap-2">
-            <span className="font-bold text-primary-dark">
-              {r.receiptNumber}
-            </span>
-            <span className="font-extrabold text-success">
-              {formatBaht(r.totalAmount)}
-            </span>
-          </div>
-          <dl className="mt-3 space-y-1.5 text-sm">
-            <CardLine label="วัน/เวลา">
-              {formatDateTime(r.createdAt)}
-            </CardLine>
-            <CardLine label="รายการ">
-              {describeSale(r) || "—"}
-            </CardLine>
-            <CardLine label="ชำระ">
-              <MethodBadge method={r.paymentMethod} />
-            </CardLine>
-          </dl>
-          <div className="mt-2">
-            <SaleItemsAccordion sale={r} />
-          </div>
-        </ReportCard>
-      ))}
-    </>
-  );
-}
-
-// ---- ตารางไถ่ถอน ----
-function RedeemTable({
-  rows,
-}: {
-  rows: {
-    id: string;
-    createdAt: Date;
-    paymentMethod: PaymentMethod;
-    total: number;
-    principal: number;
-    interest: number;
-    contract: { contractNumber: string; itemName: string };
-  }[];
-}) {
-  return (
-    <>
-      {rows.map((r) => (
-        <tr key={r.id} className="hover:bg-primary/5">
-          <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
-            {formatDateTime(r.createdAt)}
-          </td>
-          <td className="px-4 py-2.5 font-bold text-zinc-800">
-            {r.contract.contractNumber}
-          </td>
-          <td className="px-4 py-2.5">
-            <p className="text-zinc-600">{r.contract.itemName}</p>
-            <p className="text-xs text-zinc-400">
-              เงินต้น {formatBaht(r.principal)}
-              {r.interest > 0 && <> · ดอกเบี้ย {formatBaht(r.interest)}</>}
-            </p>
-          </td>
-          <td className="px-4 py-2.5">
-            <MethodBadge method={r.paymentMethod} />
-          </td>
-          <td className="px-4 py-2.5 text-right font-extrabold text-zinc-800">
-            {formatBaht(r.total)}
-          </td>
-        </tr>
-      ))}
-    </>
-  );
-}
-
-// ---- การ์ดไถ่ถอน (mobile) ----
-function RedeemCards({
-  rows,
-}: {
-  rows: Parameters<typeof RedeemTable>[0]["rows"];
-}) {
-  return (
-    <>
-      {rows.map((r) => (
-        <ReportCard key={r.id}>
-          <div className="flex items-start justify-between gap-2">
-            <span className="font-bold text-primary-dark">
-              {r.contract.contractNumber}
-            </span>
-            <span className="font-extrabold text-zinc-800">
-              {formatBaht(r.total)}
-            </span>
-          </div>
-          <dl className="mt-3 space-y-1.5 text-sm">
-            <CardLine label="วัน/เวลา">
-              {formatDateTime(r.createdAt)}
-            </CardLine>
-            <CardLine label="รายการ">
-              <span className="block">{r.contract.itemName}</span>
-              <span className="block text-xs text-zinc-400">
-                เงินต้น {formatBaht(r.principal)}
-                {r.interest > 0 && <> · ดอกเบี้ย {formatBaht(r.interest)}</>}
-              </span>
-            </CardLine>
-            <CardLine label="ชำระ">
-              <MethodBadge method={r.paymentMethod} />
-            </CardLine>
-          </dl>
-        </ReportCard>
-      ))}
-    </>
-  );
-}
-
-// ---- ตารางรายรับอื่นๆ (บันทึกเอง + มีต้นทุน) ----
-function ManualIncomeTableRows({
-  rows,
-}: {
-  rows: {
-    id: string;
-    createdAt: Date;
-    amount: number;
-    category: ManualIncomeCategory;
-    description: string;
-    costPrice: number;
-  }[];
-}) {
-  return (
-    <>
-      {rows.map((r) => {
-        const profit = r.amount - r.costPrice;
-        return (
-          <tr key={r.id} className="hover:bg-primary/5">
-            <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
-              {formatDateTime(r.createdAt)}
-            </td>
-            <td className="px-4 py-2.5 font-bold text-zinc-800">—</td>
-            <td className="px-4 py-2.5">
-              <p className="text-zinc-600">{r.description}</p>
-              <p className="text-xs text-zinc-400">
-                {MANUAL_INCOME_CATEGORY_LABEL[r.category] ?? r.category}
-              </p>
-            </td>
-            <td className="px-4 py-2.5">
-              <Badge tone={MANUAL_INCOME_CATEGORY_TONE[r.category] ?? "green"} className="whitespace-nowrap">
-                รายรับ
-              </Badge>
-            </td>
-            <td className="whitespace-nowrap">
-              <div className="flex items-center justify-end gap-2">
-                <span className="font-extrabold text-success">+{formatBaht(r.amount)}</span>
-                {r.costPrice > 0 && (
-                  <span className="text-xs text-zinc-400">({formatBaht(r.costPrice)})</span>
-                )}
-              </div>
-            </td>
-            <td className="whitespace-nowrap px-4 py-2.5 text-right font-extrabold">
-              {profit >= 0 ? (
-                <span className="text-success">+{formatBaht(profit)}</span>
-              ) : (
-                <span className="text-error">{formatBaht(profit)}</span>
-              )}
-            </td>
-          </tr>
-        );
-      })}
-    </>
-  );
-}
-
-// ---- การ์ดรายรับอื่นๆ (mobile) ----
-function ManualIncomeCards({
-  rows,
-}: {
-  rows: Parameters<typeof ManualIncomeTableRows>[0]["rows"];
-}) {
-  return (
-    <>
-      {rows.map((r) => {
-        const profit = r.amount - r.costPrice;
-        return (
-          <ReportCard key={r.id}>
-            <div className="flex items-start justify-between gap-2">
-              <span className="font-bold text-primary-dark">{r.description}</span>
-              <span className="whitespace-nowrap">
-                <span className="font-extrabold text-success">+{formatBaht(r.amount)}</span>
-                {r.costPrice > 0 && (
-                  <span className="text-xs text-zinc-400 ml-1">(ต้นทุน {formatBaht(r.costPrice)})</span>
-                )}
-              </span>
-            </div>
-            <dl className="mt-3 space-y-1.5 text-sm">
-              <CardLine label="วัน/เวลา">
-                {formatDateTime(r.createdAt)}
-              </CardLine>
-              <CardLine label="หมวด">
-                {MANUAL_INCOME_CATEGORY_LABEL[r.category] ?? r.category}
-              </CardLine>
-              <CardLine label="กำไร">
-                {profit >= 0 ? (
-                  <span className="text-success font-bold">+{formatBaht(profit)}</span>
-                ) : (
-                  <span className="text-error font-bold">{formatBaht(profit)}</span>
-                )}
-              </CardLine>
-            </dl>
-          </ReportCard>
-        );
-      })}
-    </>
-  );
-}
-
-// ---- ตารางรายจ่าย ----
-function ExpenseTable({
-  rows,
-}: {
-  rows: {
-    id: string;
-    createdAt: Date;
-    amount: number;
-    category: string;
-    description: string;
-    contract: { contractNumber: string; itemName: string } | null;
-  }[];
-}) {
-  return (
-    <>
-      {rows.map((r) => (
-        <tr key={r.id} className="hover:bg-primary/5">
-          <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
-            {formatDateTime(r.createdAt)}
-          </td>
-          <td className="px-4 py-2.5 font-bold text-zinc-800">
-            {r.contract?.contractNumber ?? EXPENSE_CATEGORY_LABEL[r.category] ?? r.category}
-          </td>
-          <td className="px-4 py-2.5">
-            <p className="text-zinc-600">{r.contract?.itemName ?? r.description}</p>
-            <p className="text-xs text-zinc-400">{r.description}</p>
-          </td>
-          <td className="px-4 py-2.5">
-            <Badge tone="red" className="whitespace-nowrap">
-              รายจ่าย
-            </Badge>
-          </td>
-          <td className="px-4 py-2.5 text-right font-extrabold text-error">
-            −{formatBaht(r.amount)}
-          </td>
-        </tr>
-      ))}
-    </>
-  );
-}
-
-// ---- การ์ดรายจ่าย (mobile) ----
-function ExpenseCards({
-  rows,
-}: {
-  rows: Parameters<typeof ExpenseTable>[0]["rows"];
-}) {
-  return (
-    <>
-      {rows.map((r) => (
-        <ReportCard key={r.id}>
-          <div className="flex items-start justify-between gap-2">
-            <span className="font-bold text-primary-dark">
-              {r.contract?.contractNumber ??
-                EXPENSE_CATEGORY_LABEL[r.category] ??
-                r.category}
-            </span>
-            <span className="font-extrabold text-error">
-              −{formatBaht(r.amount)}
-            </span>
-          </div>
-          <dl className="mt-3 space-y-1.5 text-sm">
-            <CardLine label="วัน/เวลา">
-              {formatDateTime(r.createdAt)}
-            </CardLine>
-            <CardLine label="รายการ">
-              <span className="block">{r.contract?.itemName ?? r.description}</span>
-              <span className="block text-xs text-zinc-400">
-                {r.description}
-              </span>
-            </CardLine>
-            <CardLine label="ประเภท">
-              <Badge tone="red" className="whitespace-nowrap">
-                รายจ่าย
-              </Badge>
-            </CardLine>
-          </dl>
-        </ReportCard>
-      ))}
-    </>
-  );
-}
-
-// ---- การ์ดต่อดอกเบี้ย (mobile) ----
-function RenewCards({
-  rows,
-}: {
-  rows: Parameters<typeof RenewTable>[0]["rows"];
-}) {
-  return (
-    <>
-      {rows.map((r) => (
-        <ReportCard key={r.id}>
-          <div className="flex items-start justify-between gap-2">
-            <span className="font-bold text-primary-dark">
-              {r.contract.contractNumber}
-            </span>
-            <span className="font-extrabold text-accent-dark">
-              {formatBaht(r.interestAmount)}
-            </span>
-          </div>
-          <dl className="mt-3 space-y-1.5 text-sm">
-            <CardLine label="วัน/เวลา">
-              {formatDateTime(r.createdAt)}
-            </CardLine>
-            <CardLine label="รายการ">
-              <span className="block">{r.contract.itemName}</span>
-              <span className="block text-xs text-zinc-400">
-                ต่อดอกเบี้ยครั้งที่ {r.roundNumber}
-              </span>
-            </CardLine>
-            <CardLine label="ชำระ">
-              <MethodBadge method={r.paymentMethod} />
-            </CardLine>
-          </dl>
-        </ReportCard>
-      ))}
-    </>
-  );
-}
-
-// ---- ตารางต่อดอกเบี้ย ----
-function RenewTable({
-  rows,
-}: {
-  rows: {
-    id: string;
-    createdAt: Date;
-    paymentMethod: PaymentMethod;
-    interestAmount: number;
-    roundNumber: number;
-    contract: { contractNumber: string; itemName: string };
-  }[];
-}) {
-  return (
-    <>
-      {rows.map((r) => (
-        <tr key={r.id} className="hover:bg-primary/5">
-          <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">
-            {formatDateTime(r.createdAt)}
-          </td>
-          <td className="px-4 py-2.5 font-bold text-zinc-800">
-            {r.contract.contractNumber}
-          </td>
-          <td className="px-4 py-2.5">
-            <p className="text-zinc-600">{r.contract.itemName}</p>
-            <p className="text-xs text-zinc-400">
-              ต่อดอกเบี้ยครั้งที่ {r.roundNumber}
-            </p>
-          </td>
-          <td className="px-4 py-2.5">
-            <MethodBadge method={r.paymentMethod} />
-          </td>
-          <td className="px-4 py-2.5 text-right font-extrabold text-accent-dark">
-            {formatBaht(r.interestAmount)}
-          </td>
-        </tr>
-      ))}
-    </>
-  );
 }

@@ -7,7 +7,7 @@ export function PageLoading() {
     <div className="animate-pulse space-y-4" aria-busy="true" aria-live="polite">
       <div className="flex items-center gap-2">
         <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-        <span className="text-sm font-bold text-zinc-400">กำลังโหลด…</span>
+        <span className="text-sm font-bold text-zinc-500">กำลังโหลด…</span>
       </div>
 
       {/* skeleton คล้ายหัวข้อหน้า */}
@@ -18,7 +18,7 @@ export function PageLoading() {
       <div className="h-11 w-full rounded-full bg-primary/10" />
 
       {/* skeleton ตาราง/การ์ดรายการ */}
-      <div className="space-y-2.5 rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card">
+      <div className="space-y-2.5 rounded-2xl border border-primary/15 bg-surface-card p-4 shadow-card">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="h-9 rounded-xl bg-primary/5" />
         ))}

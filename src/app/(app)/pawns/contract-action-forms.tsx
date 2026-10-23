@@ -43,7 +43,7 @@ export function ActionButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-bold transition-colors",
+        "flex min-h-10 items-center justify-center gap-1 rounded-full px-3.5 text-[0.8125rem] font-bold transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5 sm:text-xs",
         tones[tone]
       )}
     >
@@ -92,14 +92,14 @@ export function RenewForm({
     <div className="-mx-4 -mb-4 mt-2 border-t-2 border-dashed border-primary/20 bg-primary-bg px-4 py-4 sm:mx-0 sm:mb-0 sm:mt-0 sm:px-6">
       <div className="flex flex-wrap items-end gap-4">
         <div className="text-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-primary/60">
+          <p className="text-xs font-bold uppercase tracking-wide text-primary-dark">
             ต่อดอกเบี้ย 1 รอบ = 10 วัน
           </p>
           <p className="font-semibold text-zinc-500">ดอกเบี้ยที่ต้องชำระ</p>
           <p className="text-2xl font-extrabold text-accent-dark">
             {formatBaht(interest)}
           </p>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-zinc-500">
             ({contract.interestRatePercent}% ต่อ 10 วัน) ครบกำหนดใหม่{" "}
             {formatDate(addDays(new Date(contract.dueDate), PAWN_TERM_DAYS))}
           </p>
@@ -112,7 +112,7 @@ export function RenewForm({
               className={cn(
                 "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
                 method === m
-                  ? "bg-primary text-white shadow-glow-teal"
+                  ? "bg-primary-dark text-white"
                   : "border-2 border-primary/15 bg-white text-zinc-500 hover:bg-primary/10"
               )}
             >
@@ -331,7 +331,7 @@ export function RedeemForm({
               className={cn(
                 "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
                 method === m
-                  ? "bg-primary text-white shadow-glow-teal"
+                  ? "bg-primary-dark text-white"
                   : "border-2 border-primary/15 bg-white text-zinc-500 hover:bg-primary/10"
               )}
             >
@@ -397,7 +397,7 @@ function RedeemSummary({
         accent ? "border-accent/30 bg-cream" : "border-primary/15 bg-white"
       )}
     >
-      <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+      <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
         {label}
       </p>
       <p
@@ -408,7 +408,7 @@ function RedeemSummary({
       >
         {value}
       </p>
-      {hint && <p className="text-[11px] text-zinc-400">{hint}</p>}
+      {hint && <p className="text-xs text-zinc-500">{hint}</p>}
     </div>
   );
 }

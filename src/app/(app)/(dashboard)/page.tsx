@@ -18,7 +18,14 @@ import {
   PAWN_STATUS_LABEL,
   PAWN_STATUS_TONE,
 } from "@/lib/format";
-import { Badge, Button, Card } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  PageHeader,
+} from "@/components/ui";
 import { cn } from "@/components/ui";
 
 // ต้องรันแบบ dynamic เสมอ (เช็ค session ตอน request ไม่ใช่ตอน build)
@@ -117,31 +124,27 @@ export default async function DashboardPage({
   const stockUnits = totalStock._sum.quantity ?? 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-primary-dark">
-            แดชบอร์ด
-          </h1>
-          <p className="text-sm font-medium text-zinc-500">
-            ภาพรวมร้านวันนี้ — {formatDateOnly(now)}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/pawn/new">
-            <Button>+ รับจำนำใหม่</Button>
-          </Link>
-          <Link href="/pos">
-            <Button variant="secondary">เปิดหน้าร้านขาย</Button>
-          </Link>
-        </div>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHeader
+        title="แดชบอร์ด"
+        description={`ภาพรวมร้านวันนี้ — ${formatDateOnly(now)}`}
+        actions={
+          <>
+            <Link href="/pos">
+              <Button variant="secondary">เปิดหน้าร้านขาย</Button>
+            </Link>
+            <Link href="/pawn/new">
+              <Button>+ รับจำนำใหม่</Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* สถิติ */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <StatCard
           icon={<HandCoins className="h-5 w-5" />}
-          label="สัญญาจำนำที่ยัง active"
+          label="สัญญาที่ active"
           value={String(activePawns)}
           sub={
             dueSoon > 0
@@ -173,10 +176,13 @@ export default async function DashboardPage({
 
       {/* แจ้งเตือนสต็อกต่ำ */}
       {lowStock.length > 0 && (
-        <Card className="border-l-8 border-l-coral bg-cream p-4">
-          <div className="mb-2 flex items-center gap-2 text-coral-dark">
+        <Card className="border-coral/30 bg-coral/[0.06] p-4">
+          <div className="mb-2.5 flex items-center gap-2 text-coral-dark">
             <TriangleAlert className="h-5 w-5" />
             <h2 className="text-sm font-extrabold">สินค้าที่สต็อกเหลือน้อย</h2>
+            <span className="text-xs font-semibold text-coral-dark/80">
+              {lowStock.length} รายการ
+            </span>
           </div>
           <div className="flex flex-wrap gap-2">
             {lowStock.map((p) => (
@@ -188,7 +194,7 @@ export default async function DashboardPage({
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
         {/* ===== สัญญาจำนำล่าสุด ===== */}
         <RecentSection
           title="สัญญาจำนำล่าสุด"
@@ -203,28 +209,27 @@ export default async function DashboardPage({
             ) : (
               <>
                 {recentContracts.map((c) => (
-                  <ReportCard key={c.id}>
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-bold text-primary-dark">
+                  <div key={c.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-bold text-primary-dark">
                         {c.contractNumber}
                       </span>
                       <Badge tone={PAWN_STATUS_TONE[c.status]}>
                         {PAWN_STATUS_LABEL[c.status]}
                       </Badge>
                     </div>
-                    <dl className="mt-3 space-y-1.5 text-sm">
-                      <CardLine label="สิ่งที่จำนำ">
-                        <span className="block truncate">{c.itemName}</span>
-                      </CardLine>
-                      <CardLine label="ลูกค้า">{c.customer.fullName}</CardLine>
-                      <CardLine label="เงินต้น">
+                    <p className="mt-1 truncate text-sm font-semibold text-zinc-800">
+                      {c.itemName}
+                    </p>
+                    <div className="mt-1 flex items-end justify-between gap-3">
+                      <span className="min-w-0 truncate text-xs text-zinc-600">
+                        {c.customer.fullName} · ครบ {formatDateOnly(c.dueDate)}
+                      </span>
+                      <span className="shrink-0 text-sm font-extrabold tabular-nums text-zinc-900">
                         {formatBaht(c.principalAmount)}
-                      </CardLine>
-                      <CardLine label="ครบกำหนด">
-                        {formatDateTime(c.dueDate)}
-                      </CardLine>
-                    </dl>
-                  </ReportCard>
+                      </span>
+                    </div>
+                  </div>
                 ))}
               </>
             )
@@ -234,7 +239,7 @@ export default async function DashboardPage({
             <tr>
               <td
                 colSpan={5}
-                className="px-4 py-8 text-center text-sm text-zinc-400"
+                className="px-4 py-8 text-center text-sm text-zinc-500"
               >
                 ยังไม่มีสัญญาจำนำ — กด “+ รับจำนำใหม่” เพื่อเริ่ม
               </td>
@@ -278,24 +283,20 @@ export default async function DashboardPage({
             ) : (
               <>
                 {recentSales.map((s) => (
-                  <ReportCard key={s.id}>
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-bold text-primary-dark">
+                  <div key={s.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-bold text-primary-dark">
                         {s.receiptNumber}
                       </span>
-                      <span className="font-extrabold text-success">
+                      <span className="shrink-0 font-extrabold tabular-nums text-success">
                         {formatBaht(s.totalAmount)}
                       </span>
                     </div>
-                    <dl className="mt-3 space-y-1.5 text-sm">
-                      <CardLine label="วัน/เวลา">
-                        {formatDateTime(s.createdAt)}
-                      </CardLine>
-                      <CardLine label="รายการ">
-                        {describeSale(s) || "—"}
-                      </CardLine>
-                    </dl>
-                  </ReportCard>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      {formatDateTime(s.createdAt)}
+                      {describeSale(s) ? ` · ${describeSale(s)}` : ""}
+                    </p>
+                  </div>
                 ))}
               </>
             )
@@ -305,7 +306,7 @@ export default async function DashboardPage({
             <tr>
               <td
                 colSpan={4}
-                className="px-4 py-8 text-center text-sm text-zinc-400"
+                className="px-4 py-8 text-center text-sm text-zinc-500"
               >
                 ยังไม่มีรายการขายวันนี้
               </td>
@@ -352,26 +353,34 @@ function StatCard({
   alert?: boolean;
 }) {
   return (
-    <Card
-      className={`overflow-hidden border-l-8 p-4 ${
-        alert ? "border-l-coral" : "border-l-primary"
-      }`}
-    >
-      <div className="flex items-center gap-2 text-primary">
-        {icon}
-        <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+    <Card className="p-3.5 sm:p-4">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+            alert
+              ? "bg-coral/15 text-coral-dark"
+              : "bg-primary/10 text-primary-dark"
+          )}
+        >
+          {icon}
+        </span>
+        <span className="text-[0.8125rem] font-semibold leading-snug text-zinc-600">
           {label}
         </span>
       </div>
       <p
-        className={`mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl ${
+        className={cn(
+          "mt-2.5 text-[1.6rem] font-extrabold leading-none tracking-tight tabular-nums sm:text-3xl",
           alert ? "text-coral-dark" : "text-zinc-900"
-        }`}
+        )}
       >
         {value}
       </p>
       {sub && (
-        <p className="mt-1 text-xs font-medium text-zinc-400">{sub}</p>
+        <p className="mt-1.5 text-xs font-medium leading-snug text-zinc-500">
+          {sub}
+        </p>
       )}
     </Card>
   );
@@ -398,28 +407,29 @@ function RecentSection({
 }) {
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b-2 border-dashed border-primary/25 px-5 py-3.5">
-        <h2 className="text-sm font-extrabold uppercase tracking-wide text-primary-dark">
-          {title}
-        </h2>
-        <Link
-          href={href}
-          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold text-primary hover:bg-primary/10"
-        >
-          ดูทั้งหมด <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
+      <CardHeader
+        title={title}
+        action={
+          <Link
+            href={href}
+            className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold text-primary-dark transition-colors hover:bg-primary/10"
+          >
+            ดูทั้งหมด <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        }
+      />
 
       {/* Desktop: table */}
       <div className="hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[520px] text-sm">
           <thead>
-            <tr className="border-b border-zinc-100 text-left text-xs text-zinc-500">
+            <tr className="border-b border-primary/15 bg-primary/[0.04] text-left text-xs text-zinc-600">
               {headers.map((h, i) => (
                 <th
                   key={h}
+                  scope="col"
                   className={cn(
-                    "px-4 py-2.5 font-medium",
+                    "px-4 py-2.5 font-semibold uppercase tracking-wide",
                     i === headers.length - 1 && "text-right"
                   )}
                 >
@@ -432,8 +442,10 @@ function RecentSection({
         </table>
       </div>
 
-      {/* Mobile: card stack */}
-      {mobile && <div className="space-y-3 p-3 sm:hidden">{mobile}</div>}
+      {/* Mobile: รายการแบนในการ์ดเดียว — ไม่ซ้อนการ์ดในการ์ด */}
+      {mobile && (
+        <div className="divide-y divide-primary/10 sm:hidden">{mobile}</div>
+      )}
 
       <Pagination page={page} totalPages={totalPages} pageHref={pageHref} />
     </Card>
@@ -451,25 +463,27 @@ function Pagination({
 }) {
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-primary/25 px-5 py-3">
+    <div className="flex items-center justify-between gap-2 border-t-2 border-dashed border-primary/25 px-4 py-2.5">
       <Link
         href={pageHref(Math.max(page - 1, 1))}
+        aria-label="หน้าก่อนหน้า"
         aria-disabled={page <= 1}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary-dark",
           page <= 1 && "pointer-events-none opacity-40"
         )}
       >
         <ChevronLeft className="h-4 w-4" />
       </Link>
-      <span className="text-xs font-bold text-zinc-500">
+      <span className="text-xs font-bold text-zinc-600">
         หน้า {page} / {totalPages}
       </span>
       <Link
         href={pageHref(Math.min(page + 1, totalPages))}
+        aria-label="หน้าถัดไป"
         aria-disabled={page >= totalPages}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark",
+          "flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/15 text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary-dark",
           page >= totalPages && "pointer-events-none opacity-40"
         )}
       >
@@ -479,33 +493,10 @@ function Pagination({
   );
 }
 
-function ReportCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border-2 border-primary/10 bg-surface-card p-4 shadow-card">
-      {children}
-    </div>
-  );
-}
-
-function CardLine({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <dt className="shrink-0 text-zinc-400">{label}</dt>
-      <dd className="text-right text-zinc-700">{children}</dd>
-    </div>
-  );
-}
-
 function EmptyCard({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border-2 border-primary/10 bg-surface-card px-4 py-10 text-center text-sm text-zinc-400 shadow-card">
-      {text}
+    <div className="p-3">
+      <EmptyState title={text} className="py-8" />
     </div>
   );
 }

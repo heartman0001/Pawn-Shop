@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/prisma";
 import { PAGE_SIZE_COOKIE, parsePageSize } from "@/lib/page-size";
-import { Button } from "@/components/ui";
+import { Button, PageHeader } from "@/components/ui";
 import { CustomerSearch } from "./customer-search";
 
 export const metadata = { title: "ลูกค้า — ร้านรับจำนำ POS" };
@@ -55,19 +55,17 @@ export default async function CustomersPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-primary-dark">ลูกค้า</h1>
-          <p className="text-sm text-zinc-500">
-            ทั้งหมด {total} คน · มีสัญญา active อยู่ {withActive} คน
-          </p>
-        </div>
-      </div>
-      <Link href="/pawn/new">
-          <Button className="mb-4">
-            <Plus className="h-4 w-4" /> รับจำนำใหม่
-          </Button>
-        </Link>
+      <PageHeader
+        title="ลูกค้า"
+        description={`ทั้งหมด ${total} คน · มีสัญญา active อยู่ ${withActive} คน`}
+        actions={
+          <Link href="/pawn/new">
+            <Button>
+              <Plus className="h-4 w-4" /> รับจำนำใหม่
+            </Button>
+          </Link>
+        }
+      />
 
       <CustomerSearch
         initialQuery={q ?? ""}

@@ -2,7 +2,7 @@
 export default function Loading() {
   return (
     <div
-      className="flex h-[calc(100vh-8.5rem)] animate-pulse flex-col lg:flex-row lg:gap-4 max-lg:h-[calc(100dvh-8.5rem)]"
+      className="flex min-h-0 flex-1 animate-pulse flex-col md:flex-row md:gap-4"
       aria-busy="true"
       aria-live="polite"
     >
@@ -20,7 +20,7 @@ export default function Loading() {
           {Array.from({ length: 2 }).map((_, s) => (
             <div key={s}>
               <div className="mb-2 h-4 w-28 rounded-full bg-primary/10" />
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3 xl:grid-cols-6">
+              <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
@@ -40,7 +40,7 @@ export default function Loading() {
       </div>
 
       {/* ตะกร้าฝั่งขวา (แสดงเฉพาะจอใหญ่) */}
-      <aside className="mt-4 hidden w-full flex-col overflow-hidden rounded-2xl border-2 border-primary/15 bg-white shadow-card lg:mt-0 lg:flex lg:w-[340px] lg:shrink-0">
+      <aside className="mt-4 hidden w-full flex-col overflow-hidden rounded-2xl border border-primary/20 bg-white shadow-card md:mt-0 md:flex md:w-[320px] md:shrink-0 xl:w-[360px]">
         <div className="flex items-center gap-2 border-b-2 border-dashed border-primary/15 bg-cream px-4 py-3">
           <div className="h-5 w-5 rounded-full bg-primary/15" />
           <div className="h-4 w-16 rounded-full bg-primary/10" />

@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/prisma";
-import { Button } from "@/components/ui";
+import { Button, PageHeader } from "@/components/ui";
 import type { PawnContractDto } from "@/lib/dto";
 import type { PawnStatusFilter } from "@/lib/format";
 import {
@@ -103,21 +103,17 @@ export default async function PawnsPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-primary-dark">
-            รับจำนำ
-          </h1>
-          <p className="text-sm text-zinc-500">
-            สัญญาจำนำทั้งหมด — ต่อดอกเบี้ย / ตัดหลุด / ไถ่ถอน
-          </p>
-        </div>
-      </div>
-      <Link href="/pawn/new">
-        <Button className="mb-4">
-          <Plus className="h-4 w-4" /> สัญญาใหม่
-        </Button>
-      </Link>
+      <PageHeader
+        title="รับจำนำ"
+        description="สัญญาจำนำทั้งหมด — ต่อดอกเบี้ย / ตัดหลุด / ไถ่ถอน"
+        actions={
+          <Link href="/pawn/new">
+            <Button>
+              <Plus className="h-4 w-4" /> สัญญาใหม่
+            </Button>
+          </Link>
+        }
+      />
 
       <PawnContractsClient
         contracts={dtos}

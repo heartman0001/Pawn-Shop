@@ -15,14 +15,14 @@
   /* Colors — จาก DESIGN.md */
   --primary: #2ba8a2; /* teal หลัก */
   --primary-light: #3cc4bd; /* teal ไล่/ hover */
-  --primary-dark: #1e8c86; /* teal เข้ม */
+  --primary-dark: #17756f; /* teal เข้ม — ใช้กับข้อความ (คอนทราสต์ผ่าน AA บนพื้นขาว) */
   --primary-bg: #e8f6f5; /* พื้น teal อ่อน */
   --accent: #ffd23f; /* gold CTA */
   --accent-light: #ffe47a; /* gold อ่อน */
   --accent-dark: #e6b800; /* gold เข้ม */
   --coral: #ef6c4a; /* สีเตือน / หลุดจำนำ */
   --coral-light: #ff8a6a;
-  --coral-dark: #d45233;
+  --coral-dark: #c2472e; /* coral เข้ม — ใช้กับข้อความ (คอนทราสต์ผ่าน AA) */
   --cream: #fff8e7; /* พื้น input & card */
   --sky: #5dade2; /* สถานะสำเร็จข้อมูล/สารสนเทศ */
   --surface-base: #eff8f7; /* พื้นหลังทั้งแอป */
@@ -60,8 +60,28 @@
   --shadow-glow-gold: var(--glow-gold);
   --shadow-glow-coral: var(--glow-coral);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ฟอนต์: Noto Sans Thai สำหรับทุกอย่างในระบบ (ไทย + เลข)
+     Geist Mono เก็บไว้เฉพาะรหัสอ้างอิงที่ต้องกวาดตาแล้วความกว้างนิ่ง */
+  --font-sans: var(--font-noto-thai), "Noto Sans Thai", "Sarabun",
+    system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* ระยะบรรทัดสำหรับภาษาไทย — ตัวอักษรมีสระบน/ล่าง ต้องการที่หายใจมากกว่าละติน
+     ค่าเดิม (1.25–1.5) ทำให้บรรทัดไทยแน่นและอ่านยากในตาราง */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.6;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.65;
+  --text-base: 1rem;
+  --text-base--line-height: 1.7;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.6;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.5;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 1.4;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 1.3;
 
   /* Drawer animations — ใช้ transform ธรรมดา (รองรับเบราว์เซอร์/WebView เก่า)
      ห้ามใช้ utility -translate-x-* ของ Tailwind v4 กับ UI ที่ต้องซ่อน
@@ -87,15 +107,54 @@
   }
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--surface-base);
   color: #24312f;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
 
-/* ลูกเล่นเล็กน้อยตาม DESIGN.md: เลือกพื้น Cream ให้ input */
+/* หัวข้อ: ตัดบรรทัดให้สมดุล — ภาษาไทยไม่มีช่องว่าง จึงพึ่ง browser break ปกติ
+   แล้วปล่อยให้สระ/วรรณยุกต์ไม่ถูกตัดขึ้นบรรทัดใหม่กลางคำ */
+:where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+/* ตัวเลขในตารางต้องกว้างเท่ากันเพื่อเทียบหลักได้ตรงคอลัมน์ */
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* หัวตารางไม่ตัดขึ้นบรรทัดใหม่ — ให้คอลัมน์อื่นแคบลงแทน */
+table th {
+  white-space: nowrap;
+}
+
+/* โฟกัสที่มองเห็นได้เสมอ (ลิงก์/ปุ่มที่ไม่ได้ใช้ component กลาง) */
+:where(a, button, summary, [role="button"]):focus-visible {
+  outline: 2px solid var(--primary-dark);
+  outline-offset: 2px;
+}
+
+/* ลูกเล่นเล็กน้อยตาม DESIGN.md: เลือกพื้น Gold อ่อนให้ input */
 ::selection {
   background: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* เคารพการตั้งค่าลดการเคลื่อนไหวของผู้ใช้ (มือถือบางเครื่องปิดไว้) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* แถบเลื่อนกลมกลืนกับธีม */
@@ -114,6 +173,12 @@ body {
   background-clip: padding-box;
   border: 2px solid transparent;
   border-radius: 999px;
+}
+
+/* ตัวเลขเงิน/รหัสอ้างอิง — ใช้คู่กับ formatBaht และเลขสัญญา */
+@utility num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 /* ซ่อนแถบเลื่อนสำหรับแถบที่เลื่อนในแนวนอน (มือถือ) */
