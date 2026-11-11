@@ -2,14 +2,15 @@
 
 /* eslint-disable @next/next/no-img-element -- รูปสิ่งของที่แนบตอนรับจำนำ */
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarClock,
   ChevronDown,
   ChevronRight,
-  Filter,
+  Loader2,
   Search,
+  X,
 } from "lucide-react";
 import type { PawnContractDto } from "@/lib/dto";
 import {
@@ -19,7 +20,8 @@ import {
   PAWN_STATUS_TONE,
   type PawnStatusFilter,
 } from "@/lib/format";
-import { Badge, Input, Select } from "@/components/ui";
+import { Badge, Button, Input } from "@/components/ui";
+import { PageSizeSelector } from "@/components/page-size-selector";
 import { cn } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import {
@@ -64,6 +66,32 @@ function pawnsHref({
   return qs ? `/pawns?${qs}` : "/pawns";
 }
 
+/** สถานะว่างของรายการ — แยก "ยังไม่มีข้อมูล" ออกจาก "กรองแล้วไม่เจอ" พร้อมทางออก */
+function EmptyNotice({
+  filtered,
+  onClear,
+}: {
+  filtered: boolean;
+  onClear: () => void;
+}) {
+  if (!filtered) {
+    return <p className="text-sm font-bold text-zinc-700">ยังไม่มีสัญญาในระบบ</p>;
+  }
+  return (
+    <div>
+      <p className="text-sm font-bold text-zinc-700">
+        ไม่พบสัญญาที่ตรงกับตัวกรอง
+      </p>
+      <p className="mt-1 text-xs font-medium text-zinc-500">
+        ลองล้างตัวกรองหรือค้นหาด้วยคำอื่น
+      </p>
+      <Button variant="secondary" size="sm" className="mt-3" onClick={onClear}>
+        ล้างตัวกรอง
+      </Button>
+    </div>
+  );
+}
+
 export function PawnContractsClient({
   contracts,
   page,
@@ -72,7 +100,6 @@ export function PawnContractsClient({
   status,
   query,
   pageSize,
-  pageSizeOptions,
 }: {
   contracts: PawnContractDto[];
   page: number;
@@ -81,11 +108,10 @@ export function PawnContractsClient({
   status: PawnStatusFilter;
   query: string;
   pageSize: number;
-  pageSizeOptions: number[];
 }) {
   const router = useRouter();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expanded, setExpanded] = useState<ExpandKey | null>(null);
+  const [isPending, startTransition] = useTransition();
   const [toast, setToast] = useState<string | null>(null);
 
   // ช่องค้นหา: พิมพ์แล้ว debounce ค่อยอัปเดต URL (กรองที่ server)
@@ -100,10 +126,12 @@ export function PawnContractsClient({
     const trimmed = searchInput.trim();
     if (trimmed === query) return;
     const timer = window.setTimeout(() => {
-      router.push(pawnsHref({ status, q: trimmed, page: 1, size: pageSize }));
+      startTransition(() => {
+        router.push(pawnsHref({ status, q: trimmed, page: 1, size: pageSize }));
+      });
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [searchInput, query, status, pageSize, router]);
+  }, [searchInput, query, status, pageSize, router, startTransition]);
 
   // จำจำนวนต่อหน้าที่ใช้อยู่ไว้ใน cookie → ครั้งต่อไปเปิดหน้าโดยไม่มี ?size= จะใช้ค่านี้
   useEffect(() => {
@@ -111,17 +139,29 @@ export function PawnContractsClient({
   }, [pageSize]);
 
   function goStatus(next: PawnStatusFilter) {
-    setMobileMenuOpen(false);
-    router.push(pawnsHref({ status: next, q: query, page: 1, size: pageSize }));
+    startTransition(() => {
+      router.push(pawnsHref({ status: next, q: query, page: 1, size: pageSize }));
+    });
   }
 
   function goPage(next: number) {
-    router.push(pawnsHref({ status, q: query, page: next, size: pageSize }));
+    startTransition(() => {
+      router.push(pawnsHref({ status, q: query, page: next, size: pageSize }));
+    });
   }
 
   function goSize(next: number) {
     // เปลี่ยนจำนวนต่อหน้า → กลับหน้าแรก
-    router.push(pawnsHref({ status, q: query, page: 1, size: next }));
+    startTransition(() => {
+      router.push(pawnsHref({ status, q: query, page: 1, size: next }));
+    });
+  }
+
+  function clearFilters() {
+    setSearchInput("");
+    startTransition(() => {
+      router.push(pawnsHref({ status: "ALL", q: "", page: 1, size: pageSize }));
+    });
   }
 
   const isOverdue = (c: PawnContractDto) =>
@@ -134,100 +174,102 @@ export function PawnContractsClient({
 
   return (
     <div className="space-y-3">
-      {/* filter + search — mobile: burger dropdown; desktop: inline chips */}
-      <div className="relative">
-        {/* Mobile: hamburger button */}
-        <div className="flex gap-2 sm:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((v) => !v)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-primary/20 bg-white text-zinc-600 transition-colors hover:bg-primary/10 hover:text-primary-dark"
-            aria-label="เมนูกรอง"
-            aria-expanded={mobileMenuOpen}
+      {/* ตัวกรอง + ค้นหา — เห็นสถานะที่เลือกตลอดเวลา ไม่ซ่อนในเมนู burger */}
+      <div className="rounded-2xl border border-primary/15 bg-surface-card p-3 shadow-card sm:p-4">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
+          <div
+            role="group"
+            aria-label="กรองตามสถานะ"
+            className="flex gap-1.5 overflow-x-auto p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            <Filter className="h-5 w-5" />
-          </button>
-          <div className="relative ml-auto w-full min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => goStatus(f.key)}
+                aria-pressed={status === f.key}
+                className={cn(
+                  "inline-flex h-11 shrink-0 items-center rounded-full px-4 text-sm font-bold transition-colors sm:h-10",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  status === f.key
+                    ? "bg-primary-dark text-white shadow-card"
+                    : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative lg:ml-auto lg:w-72">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50"
+            />
             <Input
+              type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="ค้นหาสัญญา / ชื่อลูกค้า / สิ่งของ…"
-              className="pl-9"
+              aria-label="ค้นหาสัญญา ชื่อลูกค้า หรือสิ่งของ"
+              enterKeyHint="search"
+              className="pl-9 pr-10 [&::-webkit-search-cancel-button]:appearance-none"
             />
+            {isPending ? (
+              <Loader2
+                aria-hidden="true"
+                className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary"
+              />
+            ) : (
+              searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                  aria-label="ล้างคำค้นหา"
+                  className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-primary/10 hover:text-primary-dark"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )
+            )}
           </div>
-          {/* Dropdown menu */}
-          {mobileMenuOpen && (
-            <div className="absolute right-0 top-12 z-50 w-56 rounded-xl border border-primary/15 bg-surface-card p-3 shadow-card">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-500">
-                กรองตามสถานะ
-              </p>
-              <div className="flex flex-col gap-1">
-                {FILTERS.map((f) => (
-                  <button
-                    key={f.key}
-                    onClick={() => goStatus(f.key)}
-                    className={cn(
-                      "w-full rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                      status === f.key
-                        ? "bg-primary-dark text-white shadow-card"
-                        : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
-                    )}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Desktop: inline chips */}
-        <div className="hidden sm:flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => goStatus(f.key)}
-              className={cn(
-                "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors",
-                status === f.key
-                  ? "bg-primary-dark text-white shadow-card"
-                  : "border-2 border-primary/15 bg-white text-zinc-600 hover:bg-primary/10 hover:text-primary-dark"
+        {(status !== "ALL" || query) && (
+          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t-2 border-dashed border-primary/20 pt-2.5">
+            <p className="min-w-0 text-xs font-medium text-zinc-600">
+              กำลังกรอง
+              {status !== "ALL" && (
+                <>
+                  {" "}สถานะ{" "}
+                  <span className="font-bold text-primary-dark">
+                    {FILTERS.find((f) => f.key === status)?.label ?? status}
+                  </span>
+                </>
               )}
+              {query && (
+                <>
+                  {status !== "ALL" ? " · " : " "}คำค้น{" "}
+                  <span className="font-bold text-primary-dark">
+                    “{query}”
+                  </span>
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-bold text-coral-dark transition-colors hover:bg-coral/10"
             >
-              {f.label}
+              <X className="h-3.5 w-3.5" /> ล้างตัวกรอง
             </button>
-          ))}
-          <div className="relative ml-auto w-auto min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary/50" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="ค้นหาสัญญา / ชื่อลูกค้า / สิ่งของ…"
-              className="pl-9"
-            />
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-zinc-600">พบทั้งหมด {total} สัญญา</p>
-        <label className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-zinc-500">
-          <span className="hidden sm:inline">แสดง</span>
-          <Select
-            value={pageSize}
-            onChange={(e) => goSize(Number(e.target.value))}
-            className="h-11 w-16 px-2 text-base sm:h-9 sm:text-xs"
-            aria-label="จำนวนรายการต่อหน้า"
-          >
-            {pageSizeOptions.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </Select>
-          <span className="hidden sm:inline">ต่อหน้า</span>
-        </label>
+        <PageSizeSelector value={pageSize} onChange={goSize} />
       </div>
 
       {/* รายการสัญญา — mobile: card stack / desktop: table card */}
@@ -235,9 +277,12 @@ export function PawnContractsClient({
         {/* Mobile: card stack */}
         <div className="grid gap-3 py-3 sm:grid-cols-2 xl:hidden">
           {contracts.length === 0 && (
-            <p className="col-span-full rounded-2xl border border-dashed border-primary/20 bg-surface-card px-4 py-12 text-center text-sm text-zinc-500">
-              ไม่พบสัญญาในเงื่อนไขนี้
-            </p>
+            <div className="col-span-full rounded-2xl border border-dashed border-primary/20 bg-surface-card px-4 py-12 text-center">
+              <EmptyNotice
+                filtered={status !== "ALL" || query.length > 0}
+                onClear={clearFilters}
+              />
+            </div>
           )}
           {contracts.map((c) => {
             const overdue = isOverdue(c);
@@ -260,15 +305,24 @@ export function PawnContractsClient({
                   }}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="flex items-center gap-1.5 font-bold text-primary-dark">
+                    <div className="flex min-w-0 items-center gap-2">
                       {c.status === "ACTIVE" &&
                         (rowKey ? (
-                          <ChevronDown className="h-4 w-4 text-primary" />
+                          <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-zinc-300" />
+                          <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
                         ))}
-                      {c.contractNumber}
-                    </span>
+                      {c.image && (
+                        <img
+                          src={c.image}
+                          alt={c.itemName}
+                          className="h-10 w-10 shrink-0 rounded-lg border border-primary/15 object-cover"
+                        />
+                      )}
+                      <span className="min-w-0 truncate font-bold text-primary-dark">
+                        {c.itemName}
+                      </span>
+                    </div>
                     <Badge
                       tone={
                         c.status === "ACTIVE" && overdue
@@ -279,37 +333,29 @@ export function PawnContractsClient({
                       {PAWN_STATUS_LABEL[c.status]}
                     </Badge>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    {c.image && (
-                      <img
-                        src={c.image}
-                        alt={c.itemName}
-                        className="h-10 w-10 shrink-0 rounded-lg border border-primary/15 object-cover"
-                      />
-                    )}
-                    <p className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-800">
-                      {c.itemName}
-                    </p>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-sm font-semibold text-zinc-700">
+                      {c.customerName}
+                      {c.customerPhone ? ` · ${c.customerPhone}` : ""}
+                    </span>
                     <span className="shrink-0 text-sm font-extrabold tabular-nums text-zinc-900">
                       {formatBaht(c.principalAmount)}
                     </span>
                   </div>
-                  <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <span className="min-w-0 truncate text-xs text-zinc-600">
-                      {c.customerName}
-                      {c.customerPhone ? ` · ${c.customerPhone}` : ""}
-                    </span>
-                    {c.renewalCount > 0 && (
-                      <span className="shrink-0 text-xs text-zinc-500">
-                        ต่อดอก {c.renewalCount} ครั้ง
-                      </span>
-                    )}
-                  </div>
                   <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-zinc-600">
+                    <span className="font-semibold text-zinc-500">
+                      {c.contractNumber}
+                    </span>
+                    <span aria-hidden="true">·</span>
                     <CalendarClock className="h-3.5 w-3.5" />
                     ครบกำหนด {formatDate(c.dueDate)}
                     {overdue && <Badge tone="coral">เลยกำหนด</Badge>}
                   </p>
+                  {c.renewalCount > 0 && (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      ต่อดอก {c.renewalCount} ครั้ง
+                    </p>
+                  )}
                 </div>
 
                 {c.status === "ACTIVE" && (
@@ -399,11 +445,11 @@ export function PawnContractsClient({
             <tbody className="divide-y divide-zinc-100">
               {contracts.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-12 text-center text-sm text-zinc-500"
-                  >
-                    ไม่พบสัญญาในเงื่อนไขนี้
+                  <td colSpan={7} className="px-4 py-12 text-center">
+                    <EmptyNotice
+                      filtered={status !== "ALL" || query.length > 0}
+                      onClear={clearFilters}
+                    />
                   </td>
                 </tr>
               )}

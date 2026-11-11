@@ -277,11 +277,11 @@ function CustomerContractsModal({
       role="dialog"
       aria-modal="true"
       aria-label="แบบฟอร์มบันทึก"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-primary/20 bg-surface-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card supports-[height:100dvh]:max-h-[92dvh] sm:rounded-3xl sm:pb-5"
+        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-primary/20 bg-surface-card p-5 shadow-card supports-[height:100dvh]:max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3 border-b-2 border-dashed border-primary/25 pb-3">

@@ -27,6 +27,7 @@ import {
 import { formatDateTime, PAWN_STATUS_LABEL, PAWN_STATUS_TONE } from "@/lib/format";
 import { Badge, Button, Field, Input, PageHeader } from "@/components/ui";
 import { cn } from "@/components/ui";
+import { Select } from "@/components/select";
 import { PageSizeSelector } from "@/components/page-size-selector";
 import { usePageSize } from "@/lib/use-page-size";
 
@@ -929,19 +930,18 @@ function ItemModal({
       submitLabel={mode === "edit" ? "บันทึก" : "เพิ่มข้อมูล"}
     >
       <Field label="ลูกค้าเจ้าของ" required hint={mode === "add" ? "ยังไม่มีลูกค้า? เพิ่มในแท็บลูกค้าก่อน" : mode === "edit" ? "เปลี่ยนเจ้าของได้เฉพาะสัญญาที่ยังไม่มีธุรกรรม" : undefined}>
-        <select
+        <Select
           value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
+          onChange={setCustomerId}
           disabled={mode === "edit"}
-          className="h-10 w-full rounded-lg border border-accent-dark/30 bg-cream px-3 text-zinc-800 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:bg-zinc-100"
-        >
-          <option value="">— เลือกลูกค้า —</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.fullName} ({c.nationalId})
-            </option>
-          ))}
-        </select>
+          placeholder="— เลือกลูกค้า —"
+          searchable
+          searchPlaceholder="ค้นหาชื่อหรือเลขบัตรประชาชน…"
+          options={customers.map((c) => ({
+            value: c.id,
+            label: `${c.fullName} (${c.nationalId})`,
+          }))}
+        />
       </Field>
       <Field label="รายละเอียดสิ่งของ" required>
         <Input
@@ -1058,11 +1058,11 @@ function Modal({
       role="dialog"
       aria-modal="true"
       aria-label="แบบฟอร์มบันทึก"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-primary/20 bg-surface-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card supports-[height:100dvh]:max-h-[92dvh] sm:rounded-3xl sm:pb-5"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-primary/20 bg-surface-card p-5 shadow-card supports-[height:100dvh]:max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between border-b-2 border-dashed border-primary/25 pb-3">

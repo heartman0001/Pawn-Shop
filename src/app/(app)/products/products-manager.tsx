@@ -16,7 +16,8 @@ import {
 import { addProduct, deleteProduct, setQuantity, updatePrices } from "@/app/actions/products";
 import { PRODUCT_CATEGORIES, categoryRank } from "@/lib/categories";
 import { formatBaht, PRODUCT_IMAGE_UPLOAD_HINT } from "@/lib/format";
-import { Badge, Button, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Badge, Button, Field, Input, PageHeader } from "@/components/ui";
+import { Select } from "@/components/select";
 import { cn } from "@/components/ui";
 import { Pagination } from "@/components/pagination";
 import { PageSizeSelector } from "@/components/page-size-selector";
@@ -249,15 +250,13 @@ export function ProductsManager({
             <Field label="หมวดหมู่" required>
               <Select
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-              >
-                <option value="">— เลือกหมวดหมู่ —</option>
-                {PRODUCT_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
+                onChange={(category) => setForm({ ...form, category })}
+                placeholder="— เลือกหมวดหมู่ —"
+                options={PRODUCT_CATEGORIES.map((c) => ({
+                  value: c,
+                  label: c,
+                }))}
+              />
             </Field>
             <Field label="ต้นทุน (บาท)">
               <Input

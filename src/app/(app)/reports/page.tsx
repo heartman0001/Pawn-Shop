@@ -581,23 +581,28 @@ function ReportTableRow({ record }: { record: ReportRecord }) {
 function ReportMobileCard({ record }: { record: ReportRecord }) {
   return (
     <ReportCard>
+      {/* ลำดับการอ่าน: ชื่อรายการ/สิ่งของก่อน แล้วจึงเลขอ้างอิง */}
       <div className="flex items-start justify-between gap-2">
-        <span className="font-bold text-primary-dark">{record.reference}</span>
+        <div className="min-w-0">
+          <p className="font-bold leading-snug text-primary-dark">
+            {record.title}
+          </p>
+          <p className="mt-0.5 text-xs font-semibold text-zinc-500">
+            {record.reference}
+          </p>
+        </div>
         <span className="shrink-0 font-extrabold tabular-nums text-zinc-900">
           {record.direction === "out" ? "−" : "+"}
           {formatBaht(record.amount)}
         </span>
       </div>
+      {record.detail && (
+        <p className="mt-1.5 text-xs font-medium text-zinc-500">
+          {record.detail}
+        </p>
+      )}
       <dl className="mt-3 space-y-1.5 text-sm">
         <CardLine label="วัน/เวลา">{formatDateTime(record.createdAt)}</CardLine>
-        <CardLine label="รายการ">
-          <span className="block">{record.title}</span>
-          {record.detail && (
-            <span className="block text-xs font-medium text-zinc-500">
-              {record.detail}
-            </span>
-          )}
-        </CardLine>
         <CardLine label="ประเภท">{REPORT_TYPE_LABEL[record.kind]}</CardLine>
         {record.method && (
           <CardLine label="ชำระ">

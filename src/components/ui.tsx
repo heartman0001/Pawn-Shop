@@ -2,7 +2,6 @@ import {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
-  SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
 import Link from "next/link";
@@ -92,18 +91,6 @@ export function Textarea({
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea className={cn(inputBase, "py-2", className)} {...props} />;
-}
-
-export function Select({
-  className,
-  children,
-  ...props
-}: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select className={cn(inputBase, "h-11 pr-8", className)} {...props}>
-      {children}
-    </select>
-  );
 }
 
 export function Field({

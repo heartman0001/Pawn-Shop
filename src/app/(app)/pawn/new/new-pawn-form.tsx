@@ -18,7 +18,8 @@ import {
 import { createPawnContract } from "@/app/actions/pawn";
 import { formatBaht, formatDate, PRODUCT_IMAGE_UPLOAD_HINT } from "@/lib/format";
 import { PAWN_TERM_DAYS } from "@/lib/pawn-math";
-import { Button, Field, Input, Select, Textarea } from "@/components/ui";
+import { Button, Field, Input, Textarea } from "@/components/ui";
+import { Select } from "@/components/select";
 import { cn } from "@/components/ui";
 
 interface CustomerOption {
@@ -239,14 +240,19 @@ export function NewPawnForm({ customers }: { customers: CustomerOption[] }) {
             required
             error={customerErrors.customerId?.message}
           >
-            <Select {...register("customer.customerId")} className="h-11">
-              <option value="">— เลือกลูกค้า —</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.fullName} · {c.nationalId}
-                </option>
-              ))}
-            </Select>
+            <Select
+              value={watch("customer.customerId") ?? ""}
+              onChange={(next) =>
+                setValue("customer.customerId", next, { shouldValidate: true })
+              }
+              placeholder="— เลือกลูกค้า —"
+              searchable
+              searchPlaceholder="ค้นหาชื่อหรือเลขบัตรประชาชน…"
+              options={customers.map((c) => ({
+                value: c.id,
+                label: `${c.fullName} · ${c.nationalId}`,
+              }))}
+            />
           </Field>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">

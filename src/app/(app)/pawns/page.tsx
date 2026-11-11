@@ -7,14 +7,8 @@ import { db } from "@/lib/prisma";
 import { Button, PageHeader } from "@/components/ui";
 import type { PawnContractDto } from "@/lib/dto";
 import type { PawnStatusFilter } from "@/lib/format";
-import {
-  PAGE_SIZE_COOKIE,
-  PAGE_SIZE_OPTIONS,
-  parsePageSize,
-} from "@/lib/page-size";
+import { PAGE_SIZE_COOKIE, parsePageSize } from "@/lib/page-size";
 import { PawnContractsClient } from "./contracts-client";
-
-const PAGE_SIZES = [...PAGE_SIZE_OPTIONS];
 
 export const metadata = { title: "รับจำนำ — ร้านรับจำนำ POS" };
 
@@ -123,7 +117,6 @@ export default async function PawnsPage({
         status={status}
         query={query}
         pageSize={pageSize}
-        pageSizeOptions={PAGE_SIZES}
       />
     </div>
   );

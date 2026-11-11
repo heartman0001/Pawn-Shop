@@ -19,7 +19,8 @@ import {
   INCOME_CATEGORY_LABEL,
 } from "@/lib/format";
 import type { IncomeCategory } from "@/lib/format";
-import { Badge, Button, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Badge, Button, Field, Input, PageHeader } from "@/components/ui";
+import { Select } from "@/components/select";
 import { cn } from "@/components/ui";
 import { PageSizeSelector } from "@/components/page-size-selector";
 import { usePageSize } from "@/lib/use-page-size";
@@ -525,11 +526,11 @@ function IncomeModal({
       role="dialog"
       aria-modal="true"
       aria-label="แบบฟอร์มบันทึก"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-primary/20 bg-surface-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card supports-[height:100dvh]:max-h-[92dvh] sm:rounded-3xl sm:pb-5"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-primary/20 bg-surface-card p-5 shadow-card supports-[height:100dvh]:max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between border-b-2 border-dashed border-primary/25 pb-3">
@@ -572,14 +573,12 @@ function IncomeModal({
           <Field label="หมวด" required>
             <Select
               value={category}
-              onChange={(e) => setCategory(e.target.value as IncomeCategory)}
-            >
-              {INCOME_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {INCOME_CATEGORY_LABEL[c]}
-                </option>
-              ))}
-            </Select>
+              onChange={(next) => setCategory(next as IncomeCategory)}
+              options={INCOME_CATEGORIES.map((c) => ({
+                value: c,
+                label: INCOME_CATEGORY_LABEL[c],
+              }))}
+            />
           </Field>
           <Field label="รายละเอียด" required>
             <Input
